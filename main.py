@@ -20,7 +20,7 @@ if cuda_available:
 
 dataloader = TimeSeriesDataLoader(X, y)
 
-model = SimpleLSTM(X.shape[1], 100, 3, batch_first=True).train()
+model = SimpleLSTM(X.shape[1], 100, 3, batch_first=True)
 if cuda_available:
     model.cuda()
 
@@ -31,4 +31,16 @@ optim = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-2
 
 trainer = Trainer(model, criterion, dataloader, optim)
 
-trainer.train()
+epochs = 25
+train_loss = []
+test_loss = []
+
+for i in range(epochs):
+    print(f'Epoch {i} in progress...')
+    train_loss.append(trainer.train())
+    test_loss.append(trainer.test())
+
+print('Done training!')
+
+print(train_loss)
+print(test_loss)

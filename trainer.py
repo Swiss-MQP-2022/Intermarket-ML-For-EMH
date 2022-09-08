@@ -22,18 +22,23 @@ class Trainer:
             self.model.eval()
             loader = self.time_series_loader.test_data_loader
 
+        total_loss = 0.
+
         for X, y in loader:
             if training:
                 self.optim.zero_grad()
 
             output, memory = self.model.forward(X)
-            print(output.shape,y.shape)
 
             loss = self.criterion(output, y)
 
             if training:
                 loss.backward()
                 self.optim.step()
+
+            total_loss += loss.item() * output.size(0)
+
+        return total_loss
 
     def train(self):
         self.train_test(True)
