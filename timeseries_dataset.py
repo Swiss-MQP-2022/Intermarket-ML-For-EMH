@@ -22,7 +22,7 @@ class TimeSeriesDataset(Dataset):
         start = self.period * index
         end = self.period * (index + 1)
         x = self.X[start:end, :]
-        y = self.y[start:end]
+        y = self.y[start+1:end+1]  # need to offset by 1 for prediction training
         return x, y
 
 

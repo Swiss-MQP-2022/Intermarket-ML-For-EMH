@@ -10,8 +10,8 @@ print(f'CUDA Available: {cuda_available}')
 if cuda_available:
     print(torch.cuda.get_device_name(0))
 
-df = pd.read_csv(r"data/stock/SPY.US.csv")
-X = torch.tensor(df.select_dtypes(include=['float64']).to_numpy()).float()
+df = pd.read_csv(r"data/stock/SPY.US.csv").select_dtypes(include=['float64']).dropna() # TODO: figure out handling NaNs
+X = torch.tensor(df.to_numpy()).float()
 y = torch.tensor(df["close"].to_numpy()).float()
 
 if cuda_available:
@@ -41,6 +41,3 @@ for i in range(epochs):
     test_loss.append(trainer.test())
 
 print('Done training!')
-
-print(train_loss)
-print(test_loss)

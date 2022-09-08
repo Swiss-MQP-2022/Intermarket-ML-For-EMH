@@ -41,7 +41,7 @@ class Trainer:
         return total_loss
 
     def train(self):
-        self.train_test(True)
+        return self.train_test(True)
 
     def test(self):
-        self.train_test(False)
+        return self.train_test(False)
