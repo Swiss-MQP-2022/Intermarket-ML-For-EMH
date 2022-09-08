@@ -7,12 +7,18 @@ class Trainer:
     def __init__(self,
                  model: nn.Module,
                  criterion: nn.Module,
-                 time_series_loader: TimeSeriesDataLoader,
-                 optim: torch.optim.Optimizer):
+                 optimizer: torch.optim.Optimizer,
+                 time_series_loader: TimeSeriesDataLoader):
+        """
+        :param model: model to train/evaluate
+        :param criterion: loss module to use during training
+        :param optimizer: optimizer to use during training
+        :param time_series_loader: data loader for time series data to use
+        """
         self.model = model
         self.criterion = criterion
+        self.optimizer = optimizer
         self.time_series_loader = time_series_loader
-        self.optim = optim
 
     def train_test(self, training):
         if training:
@@ -26,7 +32,7 @@ class Trainer:
 
         for X, y in loader:
             if training:
-                self.optim.zero_grad()
+                self.optimizer.zero_grad()
 
             output, memory = self.model.forward(X)
 
@@ -34,7 +40,7 @@ class Trainer:
 
             if training:
                 loss.backward()
-                self.optim.step()
+                self.optimizer.step()
 
             total_loss += loss.item() * output.size(0)
 

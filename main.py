@@ -29,7 +29,7 @@ learning_rate = 0.01
 
 optim = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-2)
 
-trainer = Trainer(model, criterion, dataloader, optim)
+trainer = Trainer(model, criterion, optim, dataloader)
 
 epochs = 25
 train_loss = []
