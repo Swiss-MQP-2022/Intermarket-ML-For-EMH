@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 from torch.utils.data import Dataset, Subset, DataLoader
 from sklearn.model_selection import train_test_split
 
@@ -16,14 +15,14 @@ class TimeSeriesDataset(Dataset):
         self.period = period
 
     def __len__(self):
-        m, n = self.X.shape
-        return n // self.period  # number of unique periods that can be made from input data
+        m, _ = self.X.shape
+        return m // self.period  # number of unique periods that can be made from input data
 
     def __getitem__(self, index):
         start = self.period * index
         end = self.period * (index + 1)
-        x = self.X[:, start:end]
-        y = self.y[end]
+        x = self.X[start:end, :]
+        y = self.y[start:end]
         return x, y
 
 

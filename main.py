@@ -1,10 +1,34 @@
 import pandas as pd
-import numpy as np
+import torch
+from torch import nn
 from timeseries_dataset import TimeSeriesDataLoader
+from models import SimpleLSTM
+from trainer import Trainer
+
+cuda_available = torch.cuda.is_available()
+print(f'CUDA Available: {cuda_available}')
+if cuda_available:
+    print(torch.cuda.get_device_name(0))
 
 df = pd.read_csv(r"data/stock/SPY.US.csv")
-closing_prices = df["close"].to_numpy()
-X = np.expand_dims(closing_prices, axis=-1)
-y = closing_prices
+X = torch.tensor(df.select_dtypes(include=['float64']).to_numpy()).float()
+y = torch.tensor(df["close"].to_numpy()).float()
+
+if cuda_available:
+    X.cuda()
+    y.cuda()
 
 dataloader = TimeSeriesDataLoader(X, y)
+
+model = SimpleLSTM(X.shape[1], 100, 3, batch_first=True).train()
+if cuda_available:
+    model.cuda()
+
+criterion = nn.MSELoss()
+learning_rate = 0.01
+
+optim = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-2)
+
+trainer = Trainer(model, criterion, dataloader, optim)
+
+trainer.train()

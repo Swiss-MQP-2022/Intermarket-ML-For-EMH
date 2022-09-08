@@ -11,20 +11,17 @@ class SimpleLSTM(nn.Module):
         self.num_layers = num_layers
 
         self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, *args, **kwargs)
-        self.out_layer = nn.Linear(hidden_size[-1], 1)  # Output layer
+        self.out_layer = nn.Linear(hidden_size, 1)  # Output layer
 
     # Model operation
-    def forward(self, x, memory=None):
-        batch_size = x.shape[0]  # batch first
-        if memory is None:
-            h0 = torch.zeros(self.num_layers, batch_size, self.hidden_size).requires_grad_()
-            c0 = torch.zeros(self.num_layers, batch_size, self.hidden_size).requires_grad_()
-            memory = (h0, c0)
-
-        lstm_out, (_, c_n) = self.lstm(x, memory)
+    def forward(self, x, *args):
+        lstm_out, (_, c_n) = self.lstm(x, *args)
         memory = (lstm_out, c_n[-1])
 
-        output = self.out_layer(lstm_out)
+        batches = lstm_out.size(0)
+        period = lstm_out.size(1)
+
+        output = self.out_layer(lstm_out.flatten(start_dim=0, end_dim=1)).view((batches, period))
 
         return output, memory
 
