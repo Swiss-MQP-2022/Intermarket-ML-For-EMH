@@ -26,13 +26,13 @@ if cuda_available:
     model.cuda()
 
 criterion = nn.MSELoss()
-learning_rate = 0.01
+learning_rate = 0.001
 
 optim = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-2)
 
 trainer = Trainer(model, criterion, optim, dataloader)
 
-epochs = 25
+epochs = 300
 train_loss = []
 validation_loss = []
 
@@ -42,3 +42,6 @@ for i in range(epochs):
     validation_loss.append(trainer.validate())
 
 print('Done training!')
+print(train_loss)
+print(validation_loss)
+print(trainer.test())

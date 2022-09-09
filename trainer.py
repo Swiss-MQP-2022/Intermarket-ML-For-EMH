@@ -46,6 +46,7 @@ class Trainer:
             self.model.eval()
 
         total_loss = 0.
+        batches = 0
 
         for X, y in loader:
             if training:
@@ -59,9 +60,10 @@ class Trainer:
                 loss.backward()
                 self.optimizer.step()
 
-            total_loss += loss.item() * output.size(0)
+            total_loss += loss.item()
+            batches += y.size(0)
 
-        return total_loss
+        return total_loss/batches
 
     def train(self):
         return self.train_validate(DataSplit.TRAINING)
