@@ -1,6 +1,13 @@
 import torch
 from torch import nn
 from timeseries_dataset import TimeSeriesDataLoader
+from enum import Enum
+
+class DataSplit(Enum):
+    TRAINING = 0
+    VALIDATION = 1
+    TESTING = 2
+
 
 
 class Trainer:
@@ -20,13 +27,23 @@ class Trainer:
         self.optimizer = optimizer
         self.time_series_loader = time_series_loader
 
-    def train_test(self, training):
-        if training:
-            self.model.train()
+    def train_validate(self, split: DataSplit):
+        if split == DataSplit.TRAINING:
+            training = True
             loader = self.time_series_loader.train_data_loader
         else:
+            training = False
+            if split == DataSplit.VALIDATION:
+                loader = self.time_series_loader.validation_data_loader
+            elif split == DataSplit.TESTING:
+                loader = self.time_series_loader.test_data_loader
+            else:
+                raise Exception("Error: Invalid DataSplit provided.")
+
+        if training:
+            self.model.train()
+        else:
             self.model.eval()
-            loader = self.time_series_loader.test_data_loader
 
         total_loss = 0.
 
@@ -47,7 +64,10 @@ class Trainer:
         return total_loss
 
     def train(self):
-        return self.train_test(True)
+        return self.train_validate(DataSplit.TRAINING)
+
+    def validate(self):
+        return self.train_validate(DataSplit.VALIDATION)
 
     def test(self):
-        return self.train_test(False)
+        return self.train_validate(DataSplit.TESTING)

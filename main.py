@@ -34,11 +34,11 @@ trainer = Trainer(model, criterion, optim, dataloader)
 
 epochs = 25
 train_loss = []
-test_loss = []
+validation_loss = []
 
 for i in range(epochs):
     print(f'Epoch {i} in progress...')
     train_loss.append(trainer.train())
-    test_loss.append(trainer.test())
+    validation_loss.append(trainer.validate())
 
 print('Done training!')
