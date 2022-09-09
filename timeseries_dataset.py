@@ -16,7 +16,7 @@ class TimeSeriesDataset(Dataset):
 
     def __len__(self):
         m, _ = self.X.shape
-        return m // self.period  # number of unique periods that can be made from input data
+        return (m-1) // self.period  # number of unique periods that can be made from input data
 
     def __getitem__(self, index):
         start = self.period * index

@@ -10,9 +10,10 @@ print(f'CUDA Available: {cuda_available}')
 if cuda_available:
     print(torch.cuda.get_device_name(0))
 
-df = pd.read_csv(r"data/stock/SPY.US.csv").select_dtypes(include=['float64']).dropna() # TODO: figure out handling NaNs
-X = torch.tensor(df.to_numpy()).float()
-y = torch.tensor(df["close"].to_numpy()).float()
+# TODO: figure out handling NaNs
+df = pd.read_csv(r"data/stock/SPY.US.csv").select_dtypes(include=['float64']).dropna()  # Load data from file
+X = torch.tensor(df.to_numpy()).float()  # get input data
+y = torch.tensor(df["close"].to_numpy()).float()  # get expected data
 
 if cuda_available:
     X.cuda()
