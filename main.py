@@ -11,13 +11,9 @@ if cuda_available:
     print(torch.cuda.get_device_name(0))
 
 # TODO: figure out handling NaNs
-df = pd.read_csv(r"data/stock/SPY.US.csv").select_dtypes(include=['float64']).dropna()  # Load data from file
+df = pd.read_csv(r'./data/stock/SPY.US.csv').select_dtypes(include=['float64']).dropna()  # Load data from file
 X = torch.tensor(df.to_numpy()).float()  # get input data
 y = torch.tensor(df["close"].to_numpy()).float()  # get expected data
-
-if cuda_available:
-    X.cuda()
-    y.cuda()
 
 dataloader = TimeSeriesDataLoader(X, y)
 

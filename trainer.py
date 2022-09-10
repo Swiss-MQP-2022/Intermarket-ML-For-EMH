@@ -26,6 +26,7 @@ class Trainer:
         self.criterion = criterion
         self.optimizer = optimizer
         self.time_series_loader = time_series_loader
+        self.cuda_available = torch.cuda.is_available()
 
     def train_validate(self, split: DataSplit):
         if split == DataSplit.TRAINING:
@@ -49,6 +50,10 @@ class Trainer:
         batches = 0
 
         for X, y in loader:
+            if self.cuda_available:
+                X = X.cuda()
+                y = y.cuda()
+
             if training:
                 self.optimizer.zero_grad()
 
