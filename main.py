@@ -50,6 +50,7 @@ if cuda_available:
     X.cuda()
 
 forecast, _ = model.forecast(X.unsqueeze(0))
+forecast = forecast.flatten().cpu().detach().numpy()
 
 fig, axs = plt.subplots(ncols=2, figsize=(10, 5))
 
@@ -62,7 +63,7 @@ axs[0].set_xlabel('Epoch')
 axs[0].set_ylabel('Loss')
 
 # S&P 500 Forecasting
-axs[1].plot(forecast.flatten(), label='Forecast')
+axs[1].plot(forecast, label='Forecast')
 axs[1].plot(y, label='S&P 500')
 axs[1].legend()
 axs[1].set_title('Model Prediction vs. S&P 500')

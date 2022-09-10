@@ -43,7 +43,7 @@ class SimpleLSTM(nn.Module):
         lstm_out, (_, c_n) = self.lstm(x, *args)
         memory = (lstm_out, c_n[-1])
 
-        output = self.out_layer(lstm_out).cpu().detach()
+        output = self.out_layer(lstm_out)
 
         return output, memory
 
