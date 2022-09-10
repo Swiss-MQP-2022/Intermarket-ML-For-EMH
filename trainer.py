@@ -15,16 +15,19 @@ class Trainer:
                  model: nn.Module,
                  criterion: nn.Module,
                  optimizer: torch.optim.Optimizer,
-                 time_series_loader: TimeSeriesDataLoader):
+                 time_series_loader: TimeSeriesDataLoader,
+                 scheduler=None):
         """
         :param model: model to train/evaluate
         :param criterion: loss module to use during training
         :param optimizer: optimizer to use during training
         :param time_series_loader: data loader for time series data to use
+        :param scheduler: learning rate scheduler to use
         """
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
+        self.scheduler = scheduler
         self.time_series_loader = time_series_loader
         self.cuda_available = torch.cuda.is_available()
 
@@ -67,6 +70,9 @@ class Trainer:
 
             total_loss += loss.item()
             batches += y.size(0)
+
+        if split == DataSplit.VALIDATION and self.scheduler is not None:
+            self.scheduler.step(total_loss)
 
         return total_loss/batches
 

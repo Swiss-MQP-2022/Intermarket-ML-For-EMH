@@ -35,6 +35,18 @@ class SimpleLSTM(nn.Module):
 
         return output, memory
 
+    def forecast(self, x, *args):
+        """
+        :param x: tensor with input data for the model to operate over
+        :param *args: arbitrary arguments to provide with x. Expected to include (h_0, c_0) if available
+        """
+        lstm_out, (_, c_n) = self.lstm(x, *args)
+        memory = (lstm_out, c_n[-1])
+
+        output = self.out_layer(lstm_out).cpu().detach()
+
+        return output, memory
+
 
 class ComboLoss(nn.Module):
     def __init__(self,
