@@ -44,6 +44,13 @@ for i in range(epochs):
 
 print('Done training!')
 
+print('Creating plots...')
+
+if cuda_available:
+    X.cuda()
+
+forecast, _ = model.forecast(X.unsqueeze(0))
+
 fig, axs = plt.subplots(ncols=2, figsize=(10, 5))
 
 # loss
@@ -55,7 +62,6 @@ axs[0].set_xlabel('Epoch')
 axs[0].set_ylabel('Loss')
 
 # S&P 500 Forecasting
-forecast, _ = model.forecast(X.unsqueeze(0))
 axs[1].plot(forecast.flatten(), label='Forecast')
 axs[1].plot(y, label='S&P 500')
 axs[1].legend()
@@ -65,3 +71,5 @@ axs[1].set_ylabel('Value')
 axs[1].axvline(len(y)*(1-test_split), color="tab:purple")
 
 plt.savefig('./images/plot.png')
+
+print('done!')
