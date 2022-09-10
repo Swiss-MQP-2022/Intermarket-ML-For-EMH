@@ -47,7 +47,7 @@ print('Done training!')
 print('Creating plots...')
 
 if cuda_available:
-    X.cuda()
+    X = X.cuda()
 
 forecast, _ = model.forecast(X.unsqueeze(0))
 forecast = forecast.flatten().cpu().detach().numpy()
