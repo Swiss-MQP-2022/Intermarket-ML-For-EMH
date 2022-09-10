@@ -43,9 +43,6 @@ for i in range(epochs):
     validation_loss.append(trainer.validate())
 
 print('Done training!')
-print(train_loss)
-print(validation_loss)
-print(trainer.test())
 
 fig, axs = plt.subplots(ncols=2, figsize=(10, 5))
 
@@ -58,7 +55,7 @@ axs[0].set_xlabel('Epoch')
 axs[0].set_ylabel('Loss')
 
 # S&P 500 Forecasting
-forecast, _ = model.forecast(X)
+forecast, _ = model.forecast(X.unsqueeze(0))
 axs[1].plot(forecast.flatten(), label='Forecast')
 axs[1].plot(y, label='S&P 500')
 axs[1].legend()
