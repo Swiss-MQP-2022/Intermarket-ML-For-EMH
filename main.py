@@ -73,4 +73,4 @@ axs[1].axvline(len(y)*(1-test_split), color="tab:purple")
 
 plt.savefig('./images/plot.png')
 
-print('done!')
+print('Done!')
