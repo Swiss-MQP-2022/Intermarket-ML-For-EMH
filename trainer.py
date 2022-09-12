@@ -3,11 +3,11 @@ from torch import nn
 from timeseries_dataset import TimeSeriesDataLoader
 from enum import Enum
 
+
 class DataSplit(Enum):
     TRAINING = 0
     VALIDATION = 1
     TESTING = 2
-
 
 
 class Trainer:
@@ -74,7 +74,7 @@ class Trainer:
         if split == DataSplit.VALIDATION and self.scheduler is not None:
             self.scheduler.step(total_loss)
 
-        return total_loss/batches
+        return total_loss / batches
 
     def train(self):
         return self.train_validate(DataSplit.TRAINING)
