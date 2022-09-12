@@ -84,3 +84,17 @@ class Trainer:
 
     def test(self):
         return self.train_validate(DataSplit.TESTING)
+
+    def train_loop(self, epochs=100, print_freq=5):
+        train_loss = []
+        validation_loss = []
+
+        for i in range(epochs):
+            if i % print_freq == 0:
+                print(f'Epoch {i} in progress...')
+            train_loss.append(self.train())
+            validation_loss.append(self.validate())
+
+        print('Training loop finished!')
+
+        return train_loss, validation_loss

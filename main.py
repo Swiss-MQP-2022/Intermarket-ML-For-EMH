@@ -5,20 +5,27 @@ from timeseries_dataset import TimeSeriesDataLoader
 from models import SimpleLSTM
 from trainer import Trainer
 import matplotlib.pyplot as plt
+# from sklearn.preprocessing import MinMaxScaler
+import utils
 
 cuda_available = torch.cuda.is_available()
 print(f'CUDA Available: {cuda_available}')
 if cuda_available:
     print(torch.cuda.get_device_name(0))
 
-# TODO: figure out handling NaNs
-df = pd.read_csv(r'./data/stock/SPY.US.csv').set_index('timestamp').select_dtypes(include=['float64']) # Load data from file
-pct_df = df.pct_change()[1:]  # Compute percent change
-X = pct_df.to_numpy()[:-1]
-y = pct_df['close'].to_numpy()[1:]
+# TODO: figure out handling NaNs (currently using forward-fill)
+df = pd.read_csv(r'./data/stock/SPY.US.csv').set_index('timestamp').select_dtypes(include=['float64']).fillna(method='ffill')  # Load data from file
+X_0 = df.iloc[0]
+y_0 = X_0['close']
 
-X = torch.tensor(X).float()
-y = torch.tensor(y).float()
+pct_df = df.pct_change()[1:]  # Compute percent change
+
+# X_scaler, y_scaler = MinMaxScaler(), MinMaxScaler()
+# X = X_scaler.fit_transform(pct_df[:-1])
+# y = y_scaler.fit_transform(pct_df['close'].to_numpy().reshape(-1, 1)[1:]).flatten()
+
+X = torch.tensor(pct_df[:-1].to_numpy()).float()
+y = torch.tensor(pct_df['close'][1:].to_numpy()).float()
 
 validation_split = 0.20
 test_split = 0.20
@@ -37,16 +44,7 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, factor=0.1, patien
 
 trainer = Trainer(model, criterion, optim, dataloader)
 
-epochs = 30
-train_loss = []
-validation_loss = []
-
-for i in range(epochs):
-    print(f'Epoch {i} in progress...')
-    train_loss.append(trainer.train())
-    validation_loss.append(trainer.validate())
-
-print('Done training!')
+train_loss, validation_loss = trainer.train_loop(epochs=10, print_freq=5)
 
 print('Creating plots...')
 
@@ -67,8 +65,10 @@ axs[0].set_xlabel('Epoch')
 axs[0].set_ylabel('Loss')
 
 # S&P 500 Forecasting
-axs[1].plot(forecast, label='Forecast')
-axs[1].plot(y, label='S&P 500')
+# axs[1].plot(utils.pct_to_cumulative(y_scaler.inverse_transform(forecast.reshape(-1, 1)).flatten(), y_0), label='Forecast')
+# axs[1].plot(utils.pct_to_cumulative(y_scaler.inverse_transform(y.reshape(-1, 1)).flatten(), y_0), label='S&P 500')
+axs[1].plot(utils.pct_to_cumulative(forecast, y_0), label='Forecast')
+axs[1].plot(utils.pct_to_cumulative(y.numpy(), y_0), label='S&P 500')
 axs[1].legend()
 axs[1].set_title('Model Prediction vs. S&P 500')
 axs[1].set_xlabel('Time')
