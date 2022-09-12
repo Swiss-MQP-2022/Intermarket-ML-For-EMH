@@ -31,7 +31,19 @@ class SimpleLSTM(nn.Module):
         batches = lstm_out.size(0)
         period = lstm_out.size(1)
 
-        output = self.out_layer(lstm_out.flatten(start_dim=0, end_dim=1)).view((batches, period))
+        output = self.out_layer(lstm_out.flatten(start_dim=0, end_dim=1)).view((batches, period, 1))
+
+        return output, memory
+
+    def forecast(self, x, *args):
+        """
+        :param x: tensor with input data for the model to operate over
+        :param *args: arbitrary arguments to provide with x. Expected to include (h_0, c_0) if available
+        """
+        lstm_out, (_, c_n) = self.lstm(x, *args)
+        memory = (lstm_out, c_n[-1])
+
+        output = self.out_layer(lstm_out)
 
         return output, memory
 

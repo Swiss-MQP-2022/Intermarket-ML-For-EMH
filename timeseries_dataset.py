@@ -1,6 +1,7 @@
 import numpy as np
 from torch.utils.data import Dataset, Subset, DataLoader
 from sklearn.model_selection import train_test_split
+from math import floor
 
 
 class TimeSeriesDataset(Dataset):
@@ -16,23 +17,29 @@ class TimeSeriesDataset(Dataset):
 
     def __len__(self):
         m, _ = self.X.shape
-        return (m-1) // self.period  # number of unique periods that can be made from input data
+        return m // self.period  # number of unique periods that can be made from input data
 
     def __getitem__(self, index):
         start = self.period * index
         end = self.period * (index + 1)
-        x = self.X[start:end, :]
-        y = self.y[start+1:end+1]  # need to offset by 1 for prediction training
+        x = self.X[start:end]
+        y = self.y[start:end]
         return x, y
 
 
 class TimeSeriesDataLoader:
-    def __init__(self, X, y, test_split=0.20, batch_size=4):
-        self.dataset = TimeSeriesDataset(X, y, period=100)
+    def __init__(self, X, y, validation_split=0.20, test_split=0.20, batch_size=4, period=100):
+        self.dataset = TimeSeriesDataset(X, y, period=period)
 
-        train_indices, test_indices = train_test_split(range(len(self.dataset)), test_size=test_split)
+        test_start = floor(len(self.dataset) * (1 - test_split))  # Starting index of testing set
+        subset_split = validation_split*(1-test_split)  # math to get correct validation split after pulling test_split
+
+        train_indices, validation_indices = train_test_split(range(test_start), test_size=subset_split)
+        test_indices = range(test_start, len(self.dataset))
         self.train_dataset = Subset(self.dataset, train_indices)
+        self.validation_dataset = Subset(self.dataset, validation_indices)
         self.test_dataset = Subset(self.dataset, test_indices)
 
         self.train_data_loader = DataLoader(self.train_dataset, batch_size=batch_size, shuffle=True)
-        self.test_data_loader = DataLoader(self.test_dataset, batch_size=batch_size, shuffle=True)
+        self.validation_data_loader = DataLoader(self.validation_dataset, batch_size=batch_size, shuffle=True)
+        self.test_data_loader = DataLoader(self.test_dataset, batch_size=batch_size, shuffle=False)
