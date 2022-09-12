@@ -17,19 +17,19 @@ class TimeSeriesDataset(Dataset):
 
     def __len__(self):
         m, _ = self.X.shape
-        return (m-1) // self.period  # number of unique periods that can be made from input data
+        return m // self.period  # number of unique periods that can be made from input data
 
     def __getitem__(self, index):
         start = self.period * index
         end = self.period * (index + 1)
-        x = self.X[start:end, :]
-        y = self.y[start+1:end+1]  # need to offset by 1 for prediction training
+        x = self.X[start:end]
+        y = self.y[start:end]
         return x, y
 
 
 class TimeSeriesDataLoader:
-    def __init__(self, X, y, validation_split=0.20, test_split=0.20, batch_size=4):
-        self.dataset = TimeSeriesDataset(X, y, period=100)
+    def __init__(self, X, y, validation_split=0.20, test_split=0.20, batch_size=4, period=100):
+        self.dataset = TimeSeriesDataset(X, y, period=period)
 
         test_start = floor(len(self.dataset) * (1 - test_split))  # Starting index of testing set
         subset_split = validation_split*(1-test_split)  # math to get correct validation split after pulling test_split

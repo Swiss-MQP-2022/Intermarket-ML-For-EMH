@@ -5,6 +5,7 @@ from timeseries_dataset import TimeSeriesDataLoader
 from models import SimpleLSTM
 from trainer import Trainer
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import MinMaxScaler
 
 cuda_available = torch.cuda.is_available()
 print(f'CUDA Available: {cuda_available}')
@@ -12,14 +13,18 @@ if cuda_available:
     print(torch.cuda.get_device_name(0))
 
 # TODO: figure out handling NaNs
-df = pd.read_csv(r'./data/stock/SPY.US.csv').select_dtypes(include=['float64']).dropna()  # Load data from file
-X = torch.tensor(df.to_numpy()).float()  # get input data
-y = torch.tensor(df["close"].to_numpy()).float()  # get expected data
+df = pd.read_csv(r'./data/stock/SPY.US.csv').set_index('timestamp').select_dtypes(include=['float64']).dropna()  # Load data from file
+X_scaler, y_scaler = MinMaxScaler(), MinMaxScaler()
+X = X_scaler.fit_transform(df.to_numpy()[:-1])
+y = y_scaler.fit_transform(df['close'][1:].values.reshape(-1, 1))
+
+X = torch.tensor(X).float()
+y = torch.tensor(y).float()
 
 validation_split = 0.20
 test_split = 0.20
 
-dataloader = TimeSeriesDataLoader(X, y, validation_split=validation_split, test_split=test_split)
+dataloader = TimeSeriesDataLoader(X, y, validation_split=validation_split, test_split=test_split, batch_size=10)
 
 model = SimpleLSTM(X.shape[1], 100, 3, batch_first=True)
 if cuda_available:
@@ -33,7 +38,7 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, factor=0.1, patien
 
 trainer = Trainer(model, criterion, optim, dataloader)
 
-epochs = 10000
+epochs = 30
 train_loss = []
 validation_loss = []
 
