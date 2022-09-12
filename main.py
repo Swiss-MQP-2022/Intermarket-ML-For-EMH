@@ -19,8 +19,8 @@ X_scaler, y_scaler = MinMaxScaler(), MinMaxScaler()
 X = X_scaler.fit_transform(df.to_numpy()[:-1])
 y = y_scaler.fit_transform(df['close'][1:].values.reshape(-1, 1))
 
-X = utils.prices_to_percent_change(X)
-y = utils.prices_to_percent_change(y)
+X = utils.percent_diff(X)
+y = utils.percent_diff(y)
 
 X = torch.tensor(X).float()
 y = torch.tensor(y).float()

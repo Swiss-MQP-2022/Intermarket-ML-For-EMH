@@ -1,5 +1,6 @@
 import numpy as np
 
 
-def prices_to_percent_change(array):
-    return np.diff(array) / array
+def percent_diff(array):
+    rolled = np.roll(array, -1, axis=0)
+    return (rolled - array) / array
