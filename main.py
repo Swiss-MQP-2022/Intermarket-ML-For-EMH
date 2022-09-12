@@ -5,8 +5,6 @@ from timeseries_dataset import TimeSeriesDataLoader
 from models import SimpleLSTM
 from trainer import Trainer
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import MinMaxScaler
-import utils
 
 cuda_available = torch.cuda.is_available()
 print(f'CUDA Available: {cuda_available}')
@@ -14,13 +12,10 @@ if cuda_available:
     print(torch.cuda.get_device_name(0))
 
 # TODO: figure out handling NaNs
-df = pd.read_csv(r'./data/stock/SPY.US.csv').set_index('timestamp').select_dtypes(include=['float64']).dropna()  # Load data from file
-X_scaler, y_scaler = MinMaxScaler(), MinMaxScaler()
-X = X_scaler.fit_transform(df.to_numpy()[:-1])
-y = y_scaler.fit_transform(df['close'][1:].values.reshape(-1, 1))
-
-X = utils.percent_diff(X)
-y = utils.percent_diff(y)
+df = pd.read_csv(r'./data/stock/SPY.US.csv').set_index('timestamp').select_dtypes(include=['float64']) # Load data from file
+pct_df = df.pct_change()[1:]  # Compute percent change
+X = pct_df.to_numpy()[:-1]
+y = pct_df['close'].to_numpy()[1:]
 
 X = torch.tensor(X).float()
 y = torch.tensor(y).float()

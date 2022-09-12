@@ -31,7 +31,7 @@ class SimpleLSTM(nn.Module):
         batches = lstm_out.size(0)
         period = lstm_out.size(1)
 
-        output = self.out_layer(lstm_out.flatten(start_dim=0, end_dim=1)).view((batches, period, 1))
+        output = self.out_layer(lstm_out.flatten(start_dim=0, end_dim=1)).view((batches, period))
 
         return output, memory
 
