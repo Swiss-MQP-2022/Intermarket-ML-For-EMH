@@ -6,6 +6,7 @@ from models import SimpleLSTM
 from trainer import Trainer
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
+import utils
 
 cuda_available = torch.cuda.is_available()
 print(f'CUDA Available: {cuda_available}')
@@ -17,6 +18,9 @@ df = pd.read_csv(r'./data/stock/SPY.US.csv').set_index('timestamp').select_dtype
 X_scaler, y_scaler = MinMaxScaler(), MinMaxScaler()
 X = X_scaler.fit_transform(df.to_numpy()[:-1])
 y = y_scaler.fit_transform(df['close'][1:].values.reshape(-1, 1))
+
+X = utils.prices_to_percent_change(X)
+y = utils.prices_to_percent_change(y)
 
 X = torch.tensor(X).float()
 y = torch.tensor(y).float()
