@@ -5,7 +5,7 @@ from timeseries_dataset import TimeSeriesDataLoader
 from models import SimpleLSTM
 from trainer import Trainer
 import matplotlib.pyplot as plt
-# from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import StandardScaler
 import utils
 
 cuda_available = torch.cuda.is_available()
@@ -20,12 +20,15 @@ y_0 = X_0['close']
 
 pct_df = df.pct_change()[1:]  # Compute percent change
 
-# X_scaler, y_scaler = MinMaxScaler(), MinMaxScaler()
-# X = X_scaler.fit_transform(pct_df[:-1])
-# y = y_scaler.fit_transform(pct_df['close'].to_numpy().reshape(-1, 1)[1:]).flatten()
+X_scaler, y_scaler = StandardScaler(), StandardScaler()
+X = X_scaler.fit_transform(pct_df[:-1])
+y = y_scaler.fit_transform(pct_df['close'].to_numpy().reshape(-1, 1)[1:]).flatten()
 
-X = torch.tensor(pct_df[:-1].to_numpy()).float()
-y = torch.tensor(pct_df['close'][1:].to_numpy()).float()
+X = torch.tensor(X).float()
+y = torch.tensor(y).float()
+
+# X = torch.tensor(pct_df[:-1].to_numpy()).float()
+# y = torch.tensor(pct_df['close'][1:].to_numpy()).float()
 
 validation_split = 0.20
 test_split = 0.20
@@ -65,10 +68,10 @@ axs[0].set_xlabel('Epoch')
 axs[0].set_ylabel('Loss')
 
 # S&P 500 Forecasting
-# axs[1].plot(utils.pct_to_cumulative(y_scaler.inverse_transform(forecast.reshape(-1, 1)).flatten(), y_0), label='Forecast')
-# axs[1].plot(utils.pct_to_cumulative(y_scaler.inverse_transform(y.reshape(-1, 1)).flatten(), y_0), label='S&P 500')
-axs[1].plot(utils.pct_to_cumulative(forecast, y_0), label='Forecast')
-axs[1].plot(utils.pct_to_cumulative(y.numpy(), y_0), label='S&P 500')
+axs[1].plot(utils.pct_to_cumulative(y_scaler.inverse_transform(forecast.reshape(-1, 1)).flatten(), y_0), label='Forecast')
+axs[1].plot(utils.pct_to_cumulative(y_scaler.inverse_transform(y.reshape(-1, 1)).flatten(), y_0), label='S&P 500')
+# axs[1].plot(utils.pct_to_cumulative(forecast, y_0), label='Forecast')
+# axs[1].plot(utils.pct_to_cumulative(y.numpy(), y_0), label='S&P 500')
 axs[1].legend()
 axs[1].set_title('Model Prediction vs. S&P 500')
 axs[1].set_xlabel('Time')
