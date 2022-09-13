@@ -5,7 +5,7 @@ from timeseries_dataset import TimeSeriesDataLoader
 from models import SimpleLSTM
 from trainer import Trainer
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler as Scaler
 import utils
 
 cuda_available = torch.cuda.is_available()
@@ -14,13 +14,17 @@ if cuda_available:
     print(torch.cuda.get_device_name(0))
 
 # TODO: figure out handling NaNs (currently using forward-fill)
-df = pd.read_csv(r'./data/stock/SPY.US.csv').set_index('timestamp').select_dtypes(include=['float64']).fillna(method='ffill')  # Load data from file
+df = pd.read_csv(r'./data/stock/SPY.US.csv').set_index('timestamp')  # Load data from file
+df = utils.get_nonempty_float_columns(df)
+
 X_0 = df.iloc[0]
 y_0 = X_0['close']
 
 pct_df = df.pct_change()[1:]  # Compute percent change
+pct_df = utils.remove_outliers(pct_df)
 
-X_scaler, y_scaler = StandardScaler(), StandardScaler()
+
+X_scaler, y_scaler = Scaler(), Scaler()
 X = X_scaler.fit_transform(pct_df[:-1])
 y = y_scaler.fit_transform(pct_df['close'].to_numpy().reshape(-1, 1)[1:]).flatten()
 
@@ -33,7 +37,7 @@ y = torch.tensor(y).float()
 validation_split = 0.20
 test_split = 0.20
 
-dataloader = TimeSeriesDataLoader(X, y, validation_split=validation_split, test_split=test_split, batch_size=10)
+dataloader = TimeSeriesDataLoader(X, y, validation_split=validation_split, test_split=test_split, period=10, batch_size=10)
 
 model = SimpleLSTM(X.shape[1], 100, 3, batch_first=True)
 if cuda_available:
