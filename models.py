@@ -18,6 +18,7 @@ class SimpleLSTM(nn.Module):
 
         self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, **kwargs)
         self.out_layer = nn.Linear(hidden_size, 1)  # Output layer
+        self.sigmoid = nn.Sigmoid()
 
     # Model operation
     def forward(self, x, *args):
@@ -31,7 +32,9 @@ class SimpleLSTM(nn.Module):
         batches = lstm_out.size(0)
         period = lstm_out.size(1)
 
-        output = self.out_layer(lstm_out.flatten(start_dim=0, end_dim=1)).view((batches, period))
+        lin_out = self.out_layer(lstm_out[:, -1, :])
+        # lin_out = self.out_layer(lstm_out.flatten(start_dim=0, end_dim=1)).view((batches, period))
+        output = self.sigmoid(lin_out)
 
         return output, memory
 
@@ -64,10 +67,18 @@ class ComboLoss(nn.Module):
         self.classification_fn = classification_fn
         self.c_bias = c_bias
 
-    def forward(self, pred, target):
-        pred_binary = torch.sign(pred)
-        target_binary = torch.sign(target)
+    def forward(self, reg_pred, reg_target, cla_pred, cla_target):
+        reg_loss = self.regression_fn(reg_pred, reg_target)
+        classification_loss = self.c_bias * self.classification_fn(cla_pred, cla_target)
+        return reg_loss + classification_loss
 
-        loss = self.regression_fn(pred, target) + (self.c_bias * self.classification_fn(pred_binary, target_binary))
 
-        return loss
+class LimLundgrenLoss(nn.Module):
+    def __init__(self, epsilon=0.01):
+        super(LimLundgrenLoss, self).__init__()
+        self.epsilon = epsilon
+
+    def forward(self, pred, truth):
+        numer = (truth - pred).square().sum()
+        denom = pred.sign().eq(truth.sign()).sum() + self.epsilon
+        return numer / denom
