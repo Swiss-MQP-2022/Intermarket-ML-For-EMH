@@ -29,7 +29,6 @@ X_scaler = Scaler()  # Initialize scalers for normalization
 X = X_scaler.fit_transform(df[:-1])  # normalize X data
 
 y = np.sign(df['close'].diff()).to_numpy()[1:] + 1  # convert y to direction classes
-# y = F.one_hot(y)  # one hot encode y
 
 # Put data on tensors
 X = torch.tensor(X).float()

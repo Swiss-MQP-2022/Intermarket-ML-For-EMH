@@ -21,7 +21,7 @@ class TimeSeriesDataset(Dataset):
 
     def __getitem__(self, index):
         x = self.X[index:index+self.period]
-        y = self.y[self.period]
+        y = self.y[index]
         return x, y
 
 
