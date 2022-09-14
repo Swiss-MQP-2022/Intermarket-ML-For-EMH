@@ -78,8 +78,8 @@ test_expected = []
 for X_, y_ in dataloader.test_data_loader:
     if cuda_available:
         X_ = X_.cuda()
-    test_forecast.append(model(X_)[0].detach().numpy())
-    test_expected.append(y_.detach().numpy())
+    test_forecast.append(model(X_)[0].detach().cpu().numpy())
+    test_expected.append(y_.detach().cpu().numpy())
 
 test_forecast = np.concatenate(test_forecast)
 test_expected = np.concatenate(test_expected)
@@ -95,8 +95,8 @@ all_expected = []
 for X_, y_ in dataloader.all_data_loader:
     if cuda_available:
         X_ = X_.cuda()
-    all_forecast.append(model(X_)[0].detach().numpy())
-    all_expected.append(y_.detach().numpy())
+    all_forecast.append(model(X_)[0].detach().cpu().numpy())
+    all_expected.append(y_.detach().cpu().numpy())
 
 all_forecast = np.concatenate(all_forecast)
 all_expected = np.concatenate(all_expected)
