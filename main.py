@@ -54,7 +54,7 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, factor=0.1, patien
 trainer = Trainer(model, criterion, optim, dataloader)
 
 # !!! Train model !!!
-train_loss, validation_loss = trainer.train_loop(epochs=10, print_freq=1)
+train_loss, validation_loss = trainer.train_loop(epochs=100, print_freq=5)
 
 print('Creating plots...')
 
@@ -68,11 +68,40 @@ plt.ylabel('Loss')
 
 plt.savefig('./images/plot.png')
 
-if cuda_available:
-    X = X.cuda()
+print('Plots saved.')
 
-forecast, _ = model.forecast(X)  # Forecast on entire X data
+print('Generating test classification report...')
 
-print(classification_report(y.argmax(dim=1), forecast.argmax(dim=1)))
+test_forecast = []
+test_expected = []
+
+for X_, y_ in dataloader.test_data_loader:
+    if cuda_available:
+        X_ = X_.cuda()
+    test_forecast.append(model(X_)[0].detach().numpy())
+    test_expected.append(y_.detach().numpy())
+
+test_forecast = np.concatenate(test_forecast)
+test_expected = np.concatenate(test_expected)
+
+print('Test classification report:')
+print(classification_report(test_expected.argmax(axis=1), test_forecast.argmax(axis=1)))
+
+print('Generating ALL data classification report...')
+
+all_forecast = []
+all_expected = []
+
+for X_, y_ in dataloader.all_data_loader:
+    if cuda_available:
+        X_ = X_.cuda()
+    all_forecast.append(model(X_)[0].detach().numpy())
+    all_expected.append(y_.detach().numpy())
+
+all_forecast = np.concatenate(all_forecast)
+all_expected = np.concatenate(all_expected)
+
+print('ALL data classification report:')
+print(classification_report(all_expected.argmax(axis=1), all_forecast.argmax(axis=1)))
 
 print('Done!')

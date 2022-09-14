@@ -16,8 +16,8 @@ class TimeSeriesDataset(Dataset):
         self.period = period
 
     def __len__(self):
-        m, _ = self.X.shape
-        return m - 1
+        m = self.X.size(0)
+        return m - self.period
 
     def __getitem__(self, index):
         x = self.X[index:index+self.period]
@@ -41,3 +41,4 @@ class TimeSeriesDataLoader:
         self.train_data_loader = DataLoader(self.train_dataset, batch_size=batch_size, shuffle=True)
         self.validation_data_loader = DataLoader(self.validation_dataset, batch_size=batch_size, shuffle=True)
         self.test_data_loader = DataLoader(self.test_dataset, batch_size=batch_size, shuffle=False)
+        self.all_data_loader = DataLoader(self.dataset, batch_size=batch_size, shuffle=False)
