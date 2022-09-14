@@ -1,13 +1,12 @@
 import pandas as pd
 import torch
-from torch import nn
-from timeseries_dataset import TimeSeriesDataLoader
-from models import SimpleLSTM
-from trainer import Trainer
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler as Scaler
+
 import utils
-from models import LimLundgrenLoss
+from timeseries_dataset import TimeSeriesDataLoader
+from models import SimpleLSTM, LimLundgrenLoss
+from trainer import Trainer
 
 cuda_available = torch.cuda.is_available()
 print(f'CUDA Available: {cuda_available}')
@@ -23,7 +22,6 @@ y_0 = X_0['close']
 
 # pct_df = df.pct_change()[1:]  # Compute percent change
 # pct_df = utils.remove_outliers(pct_df)
-
 
 X_scaler, y_scaler = Scaler(), Scaler()
 X = X_scaler.fit_transform(df[:-1])
