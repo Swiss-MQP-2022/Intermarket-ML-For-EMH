@@ -24,8 +24,11 @@ pct_df = df.pct_change()[1:]  # Compute percent change
 # X = X_scaler.fit_transform(pct_df[:-1])
 # y = y_scaler.fit_transform(pct_df['close'].to_numpy().reshape(-1, 1)[1:]).flatten()
 
-X = torch.tensor(pct_df[:-1].to_numpy()).float()
-y = torch.tensor(pct_df['close'][1:].to_numpy()).float()
+X = torch.tensor(pct_df[:-1].to_numpy())
+y = torch.tensor(pct_df['close'][1:].to_numpy())
+
+X = X.float()
+y = y.float()
 
 validation_split = 0.20
 test_split = 0.20
@@ -76,5 +79,7 @@ axs[1].set_ylabel('Value')
 axs[1].axvline(len(y)*(1-test_split), color="tab:purple")
 
 plt.savefig('./images/plot.png')
+
+print(utils.forecast_classification_report(forecast, y))
 
 print('Done!')
