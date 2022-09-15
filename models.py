@@ -46,7 +46,7 @@ class SimpleLSTMRegressor(nn.Module):
         lstm_out, (_, c_n) = self.lstm(x, *args)
         memory = (lstm_out, c_n[-1])
 
-        lin_out = self.out_layer(lstm_out)
+        lin_out = self.out_layer(lstm_out[:, -1, :])
         output = self.sigmoid(lin_out)
 
         return output, memory
@@ -95,7 +95,7 @@ class SimpleLSTMClassifier(nn.Module):
         lstm_out, (_, c_n) = self.lstm(x, *args)
         memory = (lstm_out, c_n[-1])
 
-        lin_out = self.out_layer(lstm_out)
+        lin_out = self.out_layer(lstm_out[:, -1, :])
         output = self.softmax(lin_out)
 
         return output, memory
