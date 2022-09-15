@@ -1,3 +1,4 @@
+import torch
 from torch import nn
 
 
@@ -51,7 +52,6 @@ class SimpleLSTMRegressor(nn.Module):
         return output, memory
 
 
-
 class SimpleLSTMClassifier(nn.Module):
     # Model initialization
     def __init__(self, input_size, hidden_size, num_layers, **kwargs):
@@ -100,3 +100,29 @@ class SimpleLSTMClassifier(nn.Module):
         output = self.softmax(lin_out)
 
         return output, memory
+
+
+class SimpleFFClassifier(nn.Module):
+    def __init__(self, features_count, period, hidden_size, out_classes):
+        super(SimpleFFClassifier, self).__init__()
+        self.feature_count = features_count
+        self.period = period
+        self.hidden_size = hidden_size
+        self.out_classes = out_classes
+
+        self.in_layer = nn.Linear(self.period * self.feature_count, self.hidden_size)
+        self.h1 = nn.Linear(self.hidden_size, self.hidden_size)
+        self.h2 = nn.Linear(self.hidden_size, self.hidden_size)
+        self.out_layer = nn.Linear(self.hidden_size, self.out_classes)
+
+        self.relu = nn.ReLU()
+        self.softmax = nn.Softmax(dim=1)
+
+    def forward(self, x: torch.Tensor):
+        x_ = x.flatten(start_dim=1, end_dim=2)
+        y_0 = self.relu(self.in_layer(x_))
+        y_1 = self.relu(self.h1(y_0))
+        y_2 = self.relu(self.h2(y_1))
+        output = self.softmax(self.out_layer(y_2))
+
+        return output, None

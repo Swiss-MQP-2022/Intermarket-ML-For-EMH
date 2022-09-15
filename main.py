@@ -9,7 +9,7 @@ import numpy as np
 
 import utils
 from timeseries_dataset import TimeSeriesDataLoader
-from models import SimpleLSTMClassifier
+import models
 # from losses import LimLundgrenLoss
 from trainer import Trainer
 
@@ -34,13 +34,17 @@ y = np.sign(df['close'].diff()).to_numpy()[1:] + 1  # convert y to direction cla
 X = torch.tensor(X).float()
 y = F.one_hot(torch.tensor(y).long()).float()
 
+validation_split = 0.20
 test_split = 0.20
+period = 100
+batch_size = 1000
 
 # Create data loader
-dataloader = TimeSeriesDataLoader(X, y, validation_split=0.20, test_split=test_split, period=100, batch_size=1000)
+dataloader = TimeSeriesDataLoader(X, y, validation_split=validation_split, test_split=test_split, period=period, batch_size=batch_size)
 
 # Initialize model
-model = SimpleLSTMClassifier(X.shape[1], 100, 3, batch_first=True, dropout=0.5)
+# model = models.SimpleLSTMClassifier(X.shape[1], 100, 3, batch_first=True, dropout=0.5)
+model = models.SimpleFFClassifier(X.shape[1], period, 100, 3)
 if cuda_available:
     model.cuda()  # put model on CUDA if present
 
