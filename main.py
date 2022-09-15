@@ -60,7 +60,7 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, pa
 trainer = Trainer(model, criterion, optimizer, dataloader, scheduler=scheduler)
 
 # !!! Train model !!!
-train_loss, validation_loss = trainer.train_loop(epochs=100, print_freq=5)
+train_loss, validation_loss = trainer.train_loop(epochs=10, print_freq=5)
 
 print('Creating plots...')
 

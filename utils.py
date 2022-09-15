@@ -11,7 +11,7 @@ def pct_to_cumulative(data, initial=None):
     return cumulative
 
 
-def generate_brownian_motion(n, feature_count, mu=0.001, sigma=0.01, initial=None):
+def generate_brownian_motion(n, feature_count, mu=1e-5, sigma=1e-3, initial=None):
     norm = np.random.normal(loc=mu, scale=sigma, size=(n, feature_count))
     return pct_to_cumulative(norm, initial)
 
