@@ -4,8 +4,16 @@ from scipy import stats
 from sklearn.metrics import classification_report
 
 
-def pct_to_cumulative(data, initial):
-    return (data + 1).cumprod() * initial
+def pct_to_cumulative(data, initial=None):
+    cumulative = (data + 1).cumprod(axis=0)
+    if initial is not None:
+        cumulative *= initial
+    return cumulative
+
+
+def generate_brownian_motion(n, feature_count, mu=0.001, sigma=0.01, initial=None):
+    norm = np.random.normal(loc=mu, scale=sigma, size=(n, feature_count))
+    return pct_to_cumulative(norm, initial)
 
 
 def get_nonempty_float_columns(data):

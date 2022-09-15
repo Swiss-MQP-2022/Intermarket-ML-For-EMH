@@ -20,15 +20,18 @@ if cuda_available:
     print(torch.cuda.get_device_name(0))
 
 # Load Data # TODO: figure out handling NaNs (currently using forward-fill)
-df = pd.read_csv(r'./data/stock/SPY.US.csv').set_index('timestamp')  # Load data from file
-df = utils.get_nonempty_float_columns(df).dropna()  # filter to numeric columns. Drop NaNs
+spy = pd.read_csv(r'./data/stock/SPY.US.csv').set_index('timestamp')  # Load data from file
+spy = utils.get_nonempty_float_columns(spy).dropna()  # filter to numeric columns. Drop NaNs
 
-X_0 = df.iloc[0]  # record initial raw X values
+X_0 = spy.iloc[0]  # record initial raw X values
+
+brn = utils.generate_brownian_motion(len(spy), len(spy.columns), initial=X_0.to_numpy())
+# print(len(spy))
 
 X_scaler = Scaler()  # Initialize scalers for normalization
-X = X_scaler.fit_transform(df[:-1])  # normalize X data
+X = X_scaler.fit_transform(brn[:-1])  # normalize X data
 
-y = np.sign(df['close'].diff()).to_numpy()[1:] + 1  # convert y to direction classes
+y = np.sign(spy['close'].diff()).to_numpy()[1:] + 1  # convert y to direction classes
 
 # Put data on tensors
 X = torch.tensor(X).float()
