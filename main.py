@@ -29,7 +29,8 @@ brn = utils.generate_brownian_motion(len(spy), len(spy.columns), initial=X_0.to_
 # print(len(spy))
 
 X_scaler = Scaler()  # Initialize scalers for normalization
-X = X_scaler.fit_transform(brn[:-1])  # normalize X data
+# X = X_scaler.fit_transform(brn[:-1])  # normalize X data
+X = X_scaler.fit_transform(spy[:-1])  # normalize X data
 
 y = np.sign(spy['close'].diff()).to_numpy()[1:] + 1  # convert y to direction classes
 
@@ -52,7 +53,7 @@ if cuda_available:
     model.cuda()  # put model on CUDA if present
 
 #  Initialize loss, optimizer, and scheduler
-criterion = CrossEntropyLoss()  # Loss criterion
+criterion = CrossEntropyLoss(reduction='mean')  # Loss criterion
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-2, weight_decay=1e-2)  # Optimizer
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=10, verbose=True)  # Learning rate scheduler
 
@@ -84,7 +85,7 @@ test_expected = []
 for X_, y_ in dataloader.test_data_loader:
     if cuda_available:
         X_ = X_.cuda()
-    test_forecast.append(model(X_)[0].detach().cpu().numpy())
+    test_forecast.append(model.forecast(X_)[0].detach().cpu().numpy())
     test_expected.append(y_.detach().cpu().numpy())
 
 test_forecast = np.concatenate(test_forecast)
@@ -101,7 +102,7 @@ all_expected = []
 for X_, y_ in dataloader.all_data_loader:
     if cuda_available:
         X_ = X_.cuda()
-    all_forecast.append(model(X_)[0].detach().cpu().numpy())
+    all_forecast.append(model.forecast(X_)[0].detach().cpu().numpy())
     all_expected.append(y_.detach().cpu().numpy())
 
 all_forecast = np.concatenate(all_forecast)

@@ -82,9 +82,8 @@ class SimpleLSTMClassifier(nn.Module):
         # batches = lstm_out.size(0)
         # period = lstm_out.size(1)
 
-        lin_out = self.out_layer(lstm_out[:, -1, :])
-        # lin_out = self.out_layer(lstm_out.flatten(start_dim=0, end_dim=1)).view((batches, period))
-        output = self.softmax(lin_out)
+        output = self.out_layer(lstm_out[:, -1, :])
+        # output = self.out_layer(lstm_out.flatten(start_dim=0, end_dim=1)).view((batches, period))
 
         return output, memory
 
@@ -119,6 +118,15 @@ class SimpleFFClassifier(nn.Module):
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x: torch.Tensor):
+        x_ = x.flatten(start_dim=1, end_dim=2)
+        y_0 = self.relu(self.in_layer(x_))
+        y_1 = self.relu(self.h1(y_0))
+        y_2 = self.relu(self.h2(y_1))
+        output = self.out_layer(y_2)
+
+        return output, None
+
+    def forecast(self, x: torch.Tensor):
         x_ = x.flatten(start_dim=1, end_dim=2)
         y_0 = self.relu(self.in_layer(x_))
         y_1 = self.relu(self.h1(y_0))
