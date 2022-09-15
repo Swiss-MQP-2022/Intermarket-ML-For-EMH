@@ -57,14 +57,12 @@ class Trainer:
                 X = X.cuda()
                 y = y.cuda()
 
-            if training:
-                self.optimizer.zero_grad()
-
-            output, memory = self.model.forward(X)
+            output, memory = self.model(X)
 
             loss = self.criterion(output, y)
 
             if training:
+                self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
 

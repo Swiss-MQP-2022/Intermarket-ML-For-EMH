@@ -1,6 +1,6 @@
 import pandas as pd
 import torch
-from torch.nn import BCELoss
+from torch.nn import CrossEntropyLoss
 from torch.nn import functional as F
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler as Scaler
@@ -49,12 +49,12 @@ if cuda_available:
     model.cuda()  # put model on CUDA if present
 
 #  Initialize loss, optimizer, and scheduler
-criterion = BCELoss()  # Loss criterion
-optim = torch.optim.Adam(model.parameters(), lr=1e-2, weight_decay=1e-2)  # Optimizer
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, factor=0.1, patience=10, verbose=True)  # Learning rate scheduler
+criterion = CrossEntropyLoss()  # Loss criterion
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-2, weight_decay=1e-2)  # Optimizer
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=10, verbose=True)  # Learning rate scheduler
 
 # Initialize trainer
-trainer = Trainer(model, criterion, optim, dataloader)
+trainer = Trainer(model, criterion, optimizer, dataloader, scheduler=scheduler)
 
 # !!! Train model !!!
 train_loss, validation_loss = trainer.train_loop(epochs=100, print_freq=5)
