@@ -28,11 +28,19 @@ spy = utils.get_nonempty_float_columns(spy).dropna()  # filter to numeric column
 # brn = utils.generate_brownian_motion(len(spy), len(spy.columns), initial=X_0.to_numpy())
 # print(len(spy))
 
-X_scaler = Scaler()  # Initialize scalers for normalization
-# X = X_scaler.fit_transform(brn[:-1])  # normalize X data
-X = X_scaler.fit_transform(spy[:-1])  # normalize X data
+pct_df = spy.pct_change()[1:]  # Compute percent change
+pct_df = utils.remove_outliers(pct_df)
 
-y = np.sign(spy['close'].diff()).to_numpy()[1:] + 1  # convert y to direction classes
+X_scaler = Scaler()  # Initialize scalers for normalization
+X = X_scaler.fit_transform(pct_df[:-1])  # normalize X data
+
+# X_scaler = Scaler()  # Initialize scalers for normalization
+# X = X_scaler.fit_transform(brn[:-1])  # normalize X data
+# X = X_scaler.fit_transform(spy[:-1])  # normalize X data
+
+y = np.sign(pct_df['close'].to_numpy())[1:] + 1
+
+# y = np.sign(spy['close'].diff()).to_numpy()[1:] + 1  # convert y to direction classes
 
 # Put data on tensors
 X = torch.fft.fftn(torch.tensor(X), dim=0).float()
@@ -47,8 +55,8 @@ batch_size = 10000
 dataloader = TimeSeriesDataLoader(X, y, validation_split=validation_split, test_split=test_split, period=period, batch_size=batch_size)
 
 # Initialize model
-# model = models.SimpleLSTMClassifier(X.shape[1], 100, 3, batch_first=True, dropout=0.2)
-model = models.SimpleFFClassifier(X.shape[1], period, 100, 3)
+model = models.SimpleLSTMClassifier(X.shape[1], 100, 3, batch_first=True, dropout=0.2)
+# model = models.SimpleFFClassifier(X.shape[1], period, 100, 3)
 if cuda_available:
     model.cuda()  # put model on CUDA if present
 
