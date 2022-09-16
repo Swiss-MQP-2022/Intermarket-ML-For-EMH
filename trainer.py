@@ -47,6 +47,9 @@ class Trainer:
         }
         self.cuda_available = torch.cuda.is_available()
 
+        # this is an extremely jank way to dynamically get the number of classes because I don't want to pass it in
+        self.n_classes = len(self.time_series_loader.dataset.__getitem__(0)[1])
+
     def train_validate(self, split: DataSplit) -> dict:
         if split == DataSplit.ALL:
             raise Exception("Error: ALL data split is invalid for train_validate.")
@@ -57,7 +60,7 @@ class Trainer:
         self.model.train() if training else self.model.eval()
 
         total_loss = 0.
-        confusion = np.zeros((3, 3))  # TODO: make this dynamic
+        confusion = np.zeros((self.n_classes, self.n_classes))
 
         for X_, y_ in loader:
             if self.cuda_available:
