@@ -47,10 +47,7 @@ class Trainer:
         training = split == DataSplit.TRAIN
         loader = self.loaders[split]
 
-        if training:
-            self.model.train()
-        else:
-            self.model.eval()
+        self.model.train() if training else self.model.eval()
 
         total_loss = 0.
         batches = 0
