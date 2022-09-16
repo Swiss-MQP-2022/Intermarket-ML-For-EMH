@@ -73,19 +73,40 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, pa
 trainer = Trainer(model, criterion, optimizer, dataloader, scheduler=scheduler)
 
 # !!! Train model !!!
-train_loss, validation_loss = trainer.train_loop(epochs=50, print_freq=5)
+metrics = trainer.train_loop(epochs=50, print_freq=5)
 
 print('Creating plots...')
 
-# loss during training
-plt.plot(train_loss, label='Training')
-plt.plot(validation_loss, label='Validation')
-plt.legend()
-plt.title(f'Model Loss ({criterion.__class__.__name__})')
-plt.xlabel('Epoch')
-plt.ylabel('Loss')
 
-plt.savefig('./images/plot.png')
+# Plot creating. NOTE: MAKE SURE METRICS AGREE WITH METRIC_NAMES IN TRAINER
+fig, axs = plt.subplots(ncols=3, figsize=(15, 5))
+
+# loss during training
+axs[0].plot(metrics[DataSplit.TRAIN]['loss'], label='Training')
+axs[0].plot(metrics[DataSplit.VALIDATE]['loss'], label='Validation')
+axs[0].legend()
+axs[0].set_title(f'Model Loss ({criterion.__class__.__name__})')
+axs[0].set_xlabel('Epoch')
+axs[0].set_ylabel('Loss')
+
+# accuracy during training
+axs[1].plot(metrics[DataSplit.TRAIN]['accuracy'], label='Training')
+axs[1].plot(metrics[DataSplit.VALIDATE]['accuracy'], label='Validation')
+axs[1].legend()
+axs[1].set_title(f'Accuracy')
+axs[1].set_xlabel('Epoch')
+axs[1].set_ylabel('Percent')
+
+# balanced accuracy during training
+axs[2].plot(metrics[DataSplit.TRAIN]['balanced accuracy'], label='Training')
+axs[2].plot(metrics[DataSplit.VALIDATE]['balanced accuracy'], label='Validation')
+axs[2].legend()
+axs[2].set_title(f'Balanced Accuracy')
+axs[2].set_xlabel('Epoch')
+axs[2].set_ylabel('Percent')
+
+plt.tight_layout()
+plt.savefig('./plots/training.png')
 
 print('Plots saved.')
 

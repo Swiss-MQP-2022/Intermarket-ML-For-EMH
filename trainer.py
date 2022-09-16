@@ -3,7 +3,7 @@ from torch import nn
 from timeseries_dataset import TimeSeriesDataLoader
 from enum import Enum
 import numpy as np
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, confusion_matrix
 
 
 class DataSplit(Enum):
@@ -11,6 +11,13 @@ class DataSplit(Enum):
     VALIDATE = 'validation'
     TEST = 'test'
     ALL = 'ALL'
+
+
+METRIC_NAMES = ['loss', 'accuracy', 'balanced accuracy']
+
+
+def append_metrics(metric_dict: dict, data: dict):
+    [metric_dict[metric].append(data[metric]) for metric in METRIC_NAMES]
 
 
 class Trainer:
@@ -40,7 +47,7 @@ class Trainer:
         }
         self.cuda_available = torch.cuda.is_available()
 
-    def train_validate(self, split: DataSplit):
+    def train_validate(self, split: DataSplit) -> dict:
         if split == DataSplit.ALL:
             raise Exception("Error: ALL data split is invalid for train_validate.")
 
@@ -50,50 +57,61 @@ class Trainer:
         self.model.train() if training else self.model.eval()
 
         total_loss = 0.
+        confusion = np.zeros((3, 3))  # TODO: make this dynamic
 
-        for X, y in loader:
+        for X_, y_ in loader:
             if self.cuda_available:
-                X = X.cuda()
-                y = y.cuda()
+                X_ = X_.cuda()
+                y_ = y_.cuda()
 
-            output, memory = self.model(X)
+            output, memory = self.model(X_)
 
-            loss = self.criterion(output, y)
+            loss = self.criterion(output, y_)
 
             if training:
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
 
-            total_loss += loss.item() * len(y)  # need * len(y) when criterion reduction = 'mean'
+            total_loss += loss.item() * len(y_)  # need * len(y) when criterion reduction = 'mean'
+            confusion += confusion_matrix(y_.argmax(dim=1), output.argmax(dim=1))
 
         if split == DataSplit.VALIDATE and self.scheduler is not None:
             self.scheduler.step(total_loss)
 
-        return total_loss / len(loader.dataset)
+        # metric tracking. NOTE: THIS MUST AGREE WITH THE METRIC_NAMES VARIABLE
+        metrics = {
+            'loss': total_loss / len(loader.dataset),
+            'accuracy': confusion.diagonal().sum() / confusion.sum(),
+            'balanced accuracy': (confusion.diagonal() / confusion.sum(axis=1)).mean()
+        }
 
-    def train(self):
+        return metrics
+
+    def train(self) -> dict:
         return self.train_validate(DataSplit.TRAIN)
 
-    def validate(self):
+    def validate(self) -> dict:
         return self.train_validate(DataSplit.VALIDATE)
 
-    def test(self):
+    def test(self) -> dict:
         return self.train_validate(DataSplit.TEST)
 
-    def train_loop(self, epochs=100, print_freq=5):
-        train_loss = []
-        validation_loss = []
+    def train_loop(self, epochs=100, print_freq=5) -> dict:
+        metrics = {
+            DataSplit.TRAIN: {metric: [] for metric in METRIC_NAMES},
+            DataSplit.VALIDATE: {metric: [] for metric in METRIC_NAMES}
+        }
 
         for i in range(epochs):
             if i % print_freq == 0:
                 print(f'Epoch {i} in progress...')
-            train_loss.append(self.train())
-            validation_loss.append(self.validate())
+            append_metrics(metrics[DataSplit.TRAIN], self.train())
+            append_metrics(metrics[DataSplit.VALIDATE], self.validate())
 
         print('Training loop finished!')
 
-        return train_loss, validation_loss
+        return metrics
 
     def get_classification_report(self, split: DataSplit):
         loader = self.loaders[split]
