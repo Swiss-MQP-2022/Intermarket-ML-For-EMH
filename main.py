@@ -24,16 +24,18 @@ if cuda_available:
 spy = pd.read_csv(r'./data/stock/SPY.US.csv').set_index('timestamp')  # Load data from file
 spy = utils.get_nonempty_float_columns(spy).dropna()  # filter to numeric columns. Drop NaNs
 
-# X_0 = spy.iloc[0]  # record initial raw X values
+X_0 = spy.iloc[0]  # record initial raw X values
 
 # brn = utils.generate_brownian_motion(len(spy), len(spy.columns), initial=X_0.to_numpy())
 # print(len(spy))
 
 pct_df = spy.pct_change()[1:]  # Compute percent change
-pct_df = utils.remove_outliers(pct_df)
+# pct_df = utils.remove_outliers(pct_df)
+
+brn = utils.generate_brownian_motion(len(pct_df), len(pct_df.columns), cumulative=False)
 
 X_scaler = Scaler(feature_range=(-1, 1))  # Initialize scalers for normalization
-X = X_scaler.fit_transform(pct_df[:-1])  # normalize X data
+X = X_scaler.fit_transform(brn[:-1])  # normalize X data
 # # X = X_scaler.fit_transform(utils.pct_to_cumulative(pct_df, X_0)[:-1])  # normalize X data
 
 # X_scaler = Scaler()  # Initialize scalers for normalization
@@ -58,7 +60,7 @@ dataloader = TimeSeriesDataLoader(X, y, validation_split=validation_split, test_
 
 # Initialize model
 # model = models.SimpleLSTMClassifier(X.shape[1], 100, 3, batch_first=True, dropout=0.2)
-model = models.SimpleFFClassifier(X.shape[1], period, 100, 3, dropout=0.2)
+model = models.SimpleFFClassifier(X.shape[1], period, 100, 3, dropout=0)
 if cuda_available:
     model.cuda()  # put model on CUDA if present
 
