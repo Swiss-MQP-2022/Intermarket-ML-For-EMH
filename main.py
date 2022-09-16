@@ -21,7 +21,7 @@ if cuda_available:
     print(torch.cuda.get_device_name(0))
 
 # Load Data # TODO: figure out handling NaNs
-spy = pd.read_csv(r'./data/stock/SPY.US.csv').set_index('timestamp')  # Load data from file
+spy = pd.read_csv(r'./data/stock/SPY.US.csv').set_index('date')  # Load data from file
 spy = utils.get_nonempty_float_columns(spy).dropna()  # filter to numeric columns. Drop NaNs
 
 X_0 = spy.iloc[0]  # record initial raw X values
