@@ -7,10 +7,10 @@ from sklearn.metrics import classification_report
 
 
 class DataSplit(Enum):
-    TRAIN = 0
-    VALIDATE = 1
-    TEST = 2
-    ALL = 3
+    TRAIN = 'train'
+    VALIDATE = 'validation'
+    TEST = 'test'
+    ALL = 'ALL'
 
 
 class Trainer:
@@ -32,20 +32,20 @@ class Trainer:
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.time_series_loader = time_series_loader
+        self.loaders = {
+            DataSplit.TRAIN: self.time_series_loader.train_data_loader,
+            DataSplit.VALIDATE: self.time_series_loader.validation_data_loader,
+            DataSplit.TEST: self.time_series_loader.test_data_loader,
+            DataSplit.ALL: self.time_series_loader.all_data_loader
+        }
         self.cuda_available = torch.cuda.is_available()
 
     def train_validate(self, split: DataSplit):
-        if split == DataSplit.TRAIN:
-            training = True
-            loader = self.time_series_loader.train_data_loader
-        else:
-            training = False
-            if split == DataSplit.VALIDATE:
-                loader = self.time_series_loader.validation_data_loader
-            elif split == DataSplit.TEST:
-                loader = self.time_series_loader.test_data_loader
-            else:
-                raise Exception("Error: Invalid DataSplit provided to train_validate.")
+        if split == DataSplit.ALL:
+            raise Exception("Error: ALL data split is invalid for train_validate.")
+
+        training = split == DataSplit.TRAIN
+        loader = self.loaders[split]
 
         if training:
             self.model.train()
@@ -101,22 +101,9 @@ class Trainer:
         return train_loss, validation_loss
 
     def get_classification_report(self, split: DataSplit):
-        if split == DataSplit.TRAIN:
-            loader = self.time_series_loader.train_data_loader
-            report_name = "train"
-        elif split == DataSplit.VALIDATE:
-            loader = self.time_series_loader.validation_data_loader
-            report_name = "validaion"
-        elif split == DataSplit.TEST:
-            loader = self.time_series_loader.test_data_loader
-            report_name = "test"
-        elif split == DataSplit.ALL:
-            loader = self.time_series_loader.all_data_loader
-            report_name = "ALL"
-        else:
-            raise Exception('Error: Invalid data split provided')
+        loader = self.loaders[split]
 
-        print(f'Generating {report_name} classification report...')
+        print(f'Generating {split.value} classification report...')
 
         forecast = []
         expected = []
