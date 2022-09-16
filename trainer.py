@@ -1,9 +1,13 @@
-import torch
-from torch import nn
-from timeseries_dataset import TimeSeriesDataLoader
+from tqdm import tqdm
+from tqdm._utils import _term_move_up
 from enum import Enum
 import numpy as np
+
+import torch
+from torch import nn
 from sklearn.metrics import classification_report, confusion_matrix
+
+from timeseries_dataset import TimeSeriesDataLoader
 
 
 class DataSplit(Enum):
@@ -77,7 +81,7 @@ class Trainer:
                 self.optimizer.step()
 
             total_loss += loss.item() * len(y_)  # need * len(y) when criterion reduction = 'mean'
-            confusion += confusion_matrix(y_.argmax(dim=1), output.argmax(dim=1))
+            confusion += confusion_matrix(y_.argmax(dim=1), output.argmax(dim=1), labels=range(self.n_classes))
 
         if split == DataSplit.VALIDATE and self.scheduler is not None:
             self.scheduler.step(total_loss)
@@ -106,9 +110,9 @@ class Trainer:
             DataSplit.VALIDATE: {metric: [] for metric in METRIC_NAMES}
         }
 
-        for i in range(epochs):
-            if i % print_freq == 0:
-                print(f'Epoch {i} in progress...')
+        for i in tqdm(range(epochs)):
+            # if i % print_freq == 0:
+            #     print(f'Epoch {i} in progress...')
             append_metrics(metrics[DataSplit.TRAIN], self.train())
             append_metrics(metrics[DataSplit.VALIDATE], self.validate())
 

@@ -53,7 +53,7 @@ y = F.one_hot(torch.tensor(y).long()).float()
 validation_split = 0.20
 test_split = 0.20
 period = 100
-batch_size = 10000
+batch_size = 100
 
 # Create data loader
 dataloader = TimeSeriesDataLoader(X, y, validation_split=validation_split, test_split=test_split, period=period, batch_size=batch_size)
@@ -67,7 +67,7 @@ if cuda_available:
 #  Initialize loss, optimizer, and scheduler
 criterion = CrossEntropyLoss(reduction='mean')  # Loss criterion
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-2, weight_decay=1e-2)  # Optimizer
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=10, verbose=True)  # Learning rate scheduler
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=10, verbose=False)  # Learning rate scheduler
 
 # Initialize trainer
 trainer = Trainer(model, criterion, optimizer, dataloader, scheduler=scheduler)
