@@ -50,7 +50,6 @@ class Trainer:
         self.model.train() if training else self.model.eval()
 
         total_loss = 0.
-        batches = 0
 
         for X, y in loader:
             if self.cuda_available:
@@ -66,13 +65,12 @@ class Trainer:
                 loss.backward()
                 self.optimizer.step()
 
-            total_loss += loss.item()
-            batches += y.size(0)
+            total_loss += loss.item() * len(y)  # need * len(y) when criterion reduction = 'mean'
 
         if split == DataSplit.VALIDATE and self.scheduler is not None:
             self.scheduler.step(total_loss)
 
-        return total_loss / batches
+        return total_loss / len(loader.dataset)
 
     def train(self):
         return self.train_validate(DataSplit.TRAIN)
