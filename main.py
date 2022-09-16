@@ -1,16 +1,16 @@
 import pandas as pd
-import torch
-from torch.nn import CrossEntropyLoss
-from torch.nn import functional as F
-import matplotlib.pyplot as plt
-from sklearn.preprocessing import MinMaxScaler as Scaler
-from sklearn.metrics import classification_report
 import numpy as np
+import matplotlib.pyplot as plt
+
+import torch
+import torch.nn.functional as F
+from torch.nn import CrossEntropyLoss
+
+from sklearn.preprocessing import MinMaxScaler as Scaler
 
 import utils
-from timeseries_dataset import TimeSeriesDataLoader
 import models
-# from losses import LimLundgrenLoss
+from timeseries_dataset import TimeSeriesDataLoader
 from trainer import Trainer
 from trainer import DataSplit
 
