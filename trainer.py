@@ -104,17 +104,17 @@ class Trainer:
     def test(self) -> dict:
         return self.train_validate(DataSplit.TEST)
 
-    def train_loop(self, epochs=100, print_freq=5) -> dict:
+    def train_loop(self, epochs=100) -> dict:
         metrics = {
             DataSplit.TRAIN: {metric: [] for metric in METRIC_NAMES},
             DataSplit.VALIDATE: {metric: [] for metric in METRIC_NAMES}
         }
 
         for i in tqdm(range(epochs)):
-            # if i % print_freq == 0:
-            #     print(f'Epoch {i} in progress...')
-            append_metrics(metrics[DataSplit.TRAIN], self.train())
-            append_metrics(metrics[DataSplit.VALIDATE], self.validate())
+            train_metrics = self.train()
+            validation_metrics = self.validate()
+            append_metrics(metrics[DataSplit.TRAIN], train_metrics)
+            append_metrics(metrics[DataSplit.VALIDATE], validation_metrics)
 
         print('Training loop finished!')
 
