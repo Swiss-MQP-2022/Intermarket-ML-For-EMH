@@ -20,7 +20,7 @@ print(f'CUDA Available: {cuda_available}')
 if cuda_available:
     print(torch.cuda.get_device_name(0))
 
-# Load Data # TODO: figure out handling NaNs (currently using forward-fill)
+# Load Data # TODO: figure out handling NaNs
 spy = pd.read_csv(r'./data/stock/SPY.US.csv').set_index('timestamp')  # Load data from file
 spy = utils.get_nonempty_float_columns(spy).dropna()  # filter to numeric columns. Drop NaNs
 
@@ -30,12 +30,12 @@ X_0 = spy.iloc[0]  # record initial raw X values
 # print(len(spy))
 
 pct_df = spy.pct_change()[1:]  # Compute percent change
-# pct_df = utils.remove_outliers(pct_df)
+pct_df = utils.remove_outliers(pct_df)
 
-brn = utils.generate_brownian_motion(len(pct_df), len(pct_df.columns), cumulative=False)
+# brn = utils.generate_brownian_motion(len(pct_df), len(pct_df.columns), cumulative=False)
 
 X_scaler = Scaler(feature_range=(-1, 1))  # Initialize scalers for normalization
-X = X_scaler.fit_transform(brn[:-1])  # normalize X data
+X = X_scaler.fit_transform(pct_df[:-1])  # normalize X data
 # # X = X_scaler.fit_transform(utils.pct_to_cumulative(pct_df, X_0)[:-1])  # normalize X data
 
 # X_scaler = Scaler()  # Initialize scalers for normalization
