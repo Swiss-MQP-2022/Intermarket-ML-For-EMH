@@ -2,12 +2,15 @@ import torch
 from torch import nn
 from timeseries_dataset import TimeSeriesDataLoader
 from enum import Enum
+import numpy as np
+from sklearn.metrics import classification_report
 
 
 class DataSplit(Enum):
-    TRAINING = 0
-    VALIDATION = 1
-    TESTING = 2
+    TRAIN = 0
+    VALIDATE = 1
+    TEST = 2
+    ALL = 3
 
 
 class Trainer:
@@ -32,17 +35,17 @@ class Trainer:
         self.cuda_available = torch.cuda.is_available()
 
     def train_validate(self, split: DataSplit):
-        if split == DataSplit.TRAINING:
+        if split == DataSplit.TRAIN:
             training = True
             loader = self.time_series_loader.train_data_loader
         else:
             training = False
-            if split == DataSplit.VALIDATION:
+            if split == DataSplit.VALIDATE:
                 loader = self.time_series_loader.validation_data_loader
-            elif split == DataSplit.TESTING:
+            elif split == DataSplit.TEST:
                 loader = self.time_series_loader.test_data_loader
             else:
-                raise Exception("Error: Invalid DataSplit provided.")
+                raise Exception("Error: Invalid DataSplit provided to train_validate.")
 
         if training:
             self.model.train()
@@ -69,19 +72,19 @@ class Trainer:
             total_loss += loss.item()
             batches += y.size(0)
 
-        if split == DataSplit.VALIDATION and self.scheduler is not None:
+        if split == DataSplit.VALIDATE and self.scheduler is not None:
             self.scheduler.step(total_loss)
 
         return total_loss / batches
 
     def train(self):
-        return self.train_validate(DataSplit.TRAINING)
+        return self.train_validate(DataSplit.TRAIN)
 
     def validate(self):
-        return self.train_validate(DataSplit.VALIDATION)
+        return self.train_validate(DataSplit.VALIDATE)
 
     def test(self):
-        return self.train_validate(DataSplit.TESTING)
+        return self.train_validate(DataSplit.TEST)
 
     def train_loop(self, epochs=100, print_freq=5):
         train_loss = []
@@ -96,3 +99,35 @@ class Trainer:
         print('Training loop finished!')
 
         return train_loss, validation_loss
+
+    def get_classification_report(self, split: DataSplit):
+        if split == DataSplit.TRAIN:
+            loader = self.time_series_loader.train_data_loader
+            report_name = "train"
+        elif split == DataSplit.VALIDATE:
+            loader = self.time_series_loader.validation_data_loader
+            report_name = "validaion"
+        elif split == DataSplit.TEST:
+            loader = self.time_series_loader.test_data_loader
+            report_name = "test"
+        elif split == DataSplit.ALL:
+            loader = self.time_series_loader.all_data_loader
+            report_name = "ALL"
+        else:
+            raise Exception('Error: Invalid data split provided')
+
+        print(f'Generating {report_name} classification report...')
+
+        forecast = []
+        expected = []
+
+        for X_, y_ in loader:
+            if self.cuda_available:
+                X_ = X_.cuda()
+            forecast.append(self.model.forecast(X_)[0].detach().cpu().numpy())
+            expected.append(y_.detach().cpu().numpy())
+
+        test_forecast = np.concatenate(forecast)
+        test_expected = np.concatenate(expected)
+
+        return classification_report(test_expected.argmax(axis=1), test_forecast.argmax(axis=1))

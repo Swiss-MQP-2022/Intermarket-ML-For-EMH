@@ -12,6 +12,7 @@ from timeseries_dataset import TimeSeriesDataLoader
 import models
 # from losses import LimLundgrenLoss
 from trainer import Trainer
+from trainer import DataSplit
 
 # Get CUDA availability
 cuda_available = torch.cuda.is_available()
@@ -31,8 +32,9 @@ spy = utils.get_nonempty_float_columns(spy).dropna()  # filter to numeric column
 pct_df = spy.pct_change()[1:]  # Compute percent change
 pct_df = utils.remove_outliers(pct_df)
 
-X_scaler = Scaler()  # Initialize scalers for normalization
+X_scaler = Scaler(feature_range=(-1, 1))  # Initialize scalers for normalization
 X = X_scaler.fit_transform(pct_df[:-1])  # normalize X data
+# # X = X_scaler.fit_transform(utils.pct_to_cumulative(pct_df, X_0)[:-1])  # normalize X data
 
 # X_scaler = Scaler()  # Initialize scalers for normalization
 # X = X_scaler.fit_transform(brn[:-1])  # normalize X data
@@ -55,8 +57,8 @@ batch_size = 10000
 dataloader = TimeSeriesDataLoader(X, y, validation_split=validation_split, test_split=test_split, period=period, batch_size=batch_size)
 
 # Initialize model
-model = models.SimpleLSTMClassifier(X.shape[1], 100, 3, batch_first=True, dropout=0.2)
-# model = models.SimpleFFClassifier(X.shape[1], period, 100, 3)
+# model = models.SimpleLSTMClassifier(X.shape[1], 100, 3, batch_first=True, dropout=0.2)
+model = models.SimpleFFClassifier(X.shape[1], period, 100, 3)
 if cuda_available:
     model.cuda()  # put model on CUDA if present
 
@@ -85,38 +87,9 @@ plt.savefig('./images/plot.png')
 
 print('Plots saved.')
 
-print('Generating test classification report...')
-
-test_forecast = []
-test_expected = []
-
-for X_, y_ in dataloader.test_data_loader:
-    if cuda_available:
-        X_ = X_.cuda()
-    test_forecast.append(model.forecast(X_)[0].detach().cpu().numpy())
-    test_expected.append(y_.detach().cpu().numpy())
-
-test_forecast = np.concatenate(test_forecast)
-test_expected = np.concatenate(test_expected)
-
-print('Test classification report:')
-print(classification_report(test_expected.argmax(axis=1), test_forecast.argmax(axis=1)))
-
-print('Generating ALL data classification report...')
-
-all_forecast = []
-all_expected = []
-
-for X_, y_ in dataloader.all_data_loader:
-    if cuda_available:
-        X_ = X_.cuda()
-    all_forecast.append(model.forecast(X_)[0].detach().cpu().numpy())
-    all_expected.append(y_.detach().cpu().numpy())
-
-all_forecast = np.concatenate(all_forecast)
-all_expected = np.concatenate(all_expected)
-
-print('ALL data classification report:')
-print(classification_report(all_expected.argmax(axis=1), all_forecast.argmax(axis=1)))
+print(trainer.get_classification_report(DataSplit.TRAIN))
+print(trainer.get_classification_report(DataSplit.VALIDATE))
+print(trainer.get_classification_report(DataSplit.TEST))
+print(trainer.get_classification_report(DataSplit.ALL))
 
 print('Done!')
