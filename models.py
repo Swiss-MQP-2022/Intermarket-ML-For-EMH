@@ -102,7 +102,7 @@ class SimpleLSTMClassifier(nn.Module):
 
 
 class SimpleFFClassifier(nn.Module):
-    def __init__(self, features_count, period, hidden_size, out_classes):
+    def __init__(self, features_count, period, hidden_size, out_classes, dropout=0):
         super(SimpleFFClassifier, self).__init__()
         self.feature_count = features_count
         self.period = period
@@ -114,14 +114,15 @@ class SimpleFFClassifier(nn.Module):
         self.h2 = nn.Linear(self.hidden_size, self.hidden_size)
         self.out_layer = nn.Linear(self.hidden_size, self.out_classes)
 
+        self.dropout = nn.Dropout(p=dropout)
         self.relu = nn.ReLU()
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x: torch.Tensor):
         x_ = x.flatten(start_dim=1, end_dim=2)
-        y_0 = self.relu(self.in_layer(x_))
-        y_1 = self.relu(self.h1(y_0))
-        y_2 = self.relu(self.h2(y_1))
+        y_0 = self.dropout(self.relu(self.in_layer(x_)))
+        y_1 = self.dropout(self.relu(self.h1(y_0)))
+        y_2 = self.dropout(self.relu(self.h2(y_1)))
         output = self.out_layer(y_2)
 
         return output, None

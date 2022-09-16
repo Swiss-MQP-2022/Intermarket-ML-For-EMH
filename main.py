@@ -58,7 +58,7 @@ dataloader = TimeSeriesDataLoader(X, y, validation_split=validation_split, test_
 
 # Initialize model
 # model = models.SimpleLSTMClassifier(X.shape[1], 100, 3, batch_first=True, dropout=0.2)
-model = models.SimpleFFClassifier(X.shape[1], period, 100, 3)
+model = models.SimpleFFClassifier(X.shape[1], period, 100, 3, dropout=0.2)
 if cuda_available:
     model.cuda()  # put model on CUDA if present
 
