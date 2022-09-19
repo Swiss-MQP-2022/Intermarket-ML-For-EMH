@@ -47,7 +47,8 @@ y = np.sign(pct_df['close'].to_numpy())[1:] + 1
 # y = np.sign(spy['close'].diff()).to_numpy()[1:] + 1  # convert y to direction classes
 
 # Put data on tensors
-X = torch.fft.fftn(torch.tensor(X), dim=0).float()
+X = torch.fft.fftn(torch.tensor(X), dim=0).float()  # Fourier transform
+# X = torch.tensor(X).float()
 y = F.one_hot(torch.tensor(y).long()).float()
 
 validation_split = 0.20
