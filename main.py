@@ -1,80 +1,121 @@
 import pandas as pd
-import torch
-from torch import nn
-from timeseries_dataset import TimeSeriesDataLoader
-from models import SimpleLSTM
-from trainer import Trainer
+import numpy as np
 import matplotlib.pyplot as plt
 
+import torch
+import torch.nn.functional as F
+from torch.nn import CrossEntropyLoss
+
+from sklearn.preprocessing import MinMaxScaler as Scaler
+
+import utils
+import models
+from timeseries_dataset import TimeSeriesDataLoader
+from trainer import Trainer
+from trainer import DataSplit
+
+# Get CUDA availability
 cuda_available = torch.cuda.is_available()
 print(f'CUDA Available: {cuda_available}')
 if cuda_available:
     print(torch.cuda.get_device_name(0))
 
-# TODO: figure out handling NaNs
-df = pd.read_csv(r'./data/stock/SPY.US.csv').set_index('timestamp').select_dtypes(include=['float64']) # Load data from file
-pct_df = df.pct_change()[1:]  # Compute percent change
-X = pct_df.to_numpy()[:-1]
-y = pct_df['close'].to_numpy()[1:]
+# Load Data
+spy = pd.read_csv(r'./data/stock/SPY.US.csv').set_index('date')  # Load data from file
+spy = utils.get_nonempty_float_columns(spy).dropna()  # filter to numeric columns. Drop NaNs
 
+X_0 = spy.iloc[0]  # record initial raw X values
+
+# brn = utils.generate_brownian_motion(len(spy), len(spy.columns), initial=X_0.to_numpy())
+# print(len(spy))
+
+pct_df = spy.pct_change()[1:]  # Compute percent change
+pct_df = utils.remove_outliers(pct_df)
+
+# brn = utils.generate_brownian_motion(len(pct_df), len(pct_df.columns), cumulative=False)
+
+X_scaler = Scaler(feature_range=(-1, 1))  # Initialize scalers for normalization
+X = X_scaler.fit_transform(pct_df[:-1])  # normalize X data
+# # X = X_scaler.fit_transform(utils.pct_to_cumulative(pct_df, X_0)[:-1])  # normalize X data
+
+# X_scaler = Scaler()  # Initialize scalers for normalization
+# X = X_scaler.fit_transform(brn[:-1])  # normalize X data
+# X = X_scaler.fit_transform(spy[:-1])  # normalize X data
+
+y = np.sign(pct_df['close'].to_numpy())[1:] + 1
+
+# y = np.sign(spy['close'].diff()).to_numpy()[1:] + 1  # convert y to direction classes
+
+# Put data on tensors
+# X = torch.fft.fftn(torch.tensor(X), dim=0).float()  # Fourier transform
 X = torch.tensor(X).float()
-y = torch.tensor(y).float()
+y = F.one_hot(torch.tensor(y).long()).float()
 
 validation_split = 0.20
 test_split = 0.20
+period = 100
+batch_size = 100
 
-dataloader = TimeSeriesDataLoader(X, y, validation_split=validation_split, test_split=test_split, batch_size=10)
+# Create data loader
+dataloader = TimeSeriesDataLoader(X, y, validation_split=validation_split, test_split=test_split, period=period, batch_size=batch_size)
 
-model = SimpleLSTM(X.shape[1], 100, 3, batch_first=True)
+# Initialize model
+# model = models.SimpleLSTMClassifier(X.shape[1], 100, 3, batch_first=True, dropout=0.2)
+model = models.SimpleFFClassifier(X.shape[1], period, 100, 3, dropout=0)
 if cuda_available:
-    model.cuda()
+    model.cuda()  # put model on CUDA if present
 
-criterion = nn.MSELoss()
-learning_rate = 0.001
+reduction = 'mean'
 
-optim = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-2)
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, factor=0.1, patience=100, verbose=True)
+#  Initialize loss, optimizer, and scheduler
+criterion = CrossEntropyLoss(reduction=reduction)  # Loss criterion
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-2, weight_decay=1e-2)  # Optimizer
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=10, verbose=False)  # Learning rate scheduler
 
-trainer = Trainer(model, criterion, optim, dataloader)
+# Initialize trainer
+trainer = Trainer(model, criterion, optimizer, dataloader, scheduler=scheduler, reduction=reduction)
 
-epochs = 30
-train_loss = []
-validation_loss = []
-
-for i in range(epochs):
-    print(f'Epoch {i} in progress...')
-    train_loss.append(trainer.train())
-    validation_loss.append(trainer.validate())
-
-print('Done training!')
+# !!! Train model !!!
+metrics = trainer.train_loop(epochs=50)
 
 print('Creating plots...')
 
-if cuda_available:
-    X = X.cuda()
 
-forecast, _ = model.forecast(X.unsqueeze(0))
-forecast = forecast.flatten().cpu().detach().numpy()
+# Plot creating. NOTE: MAKE SURE METRICS AGREE WITH METRIC_NAMES IN TRAINER
+fig, axs = plt.subplots(ncols=3, figsize=(15, 5))
 
-fig, axs = plt.subplots(ncols=2, figsize=(10, 5))
-
-# loss
-axs[0].plot(train_loss, label='Training')
-axs[0].plot(validation_loss, label='Validation')
+# loss during training
+axs[0].plot(metrics[DataSplit.TRAIN]['loss'], label='Training')
+axs[0].plot(metrics[DataSplit.VALIDATE]['loss'], label='Validation')
 axs[0].legend()
 axs[0].set_title(f'Model Loss ({criterion.__class__.__name__})')
 axs[0].set_xlabel('Epoch')
 axs[0].set_ylabel('Loss')
 
-# S&P 500 Forecasting
-axs[1].plot(forecast, label='Forecast')
-axs[1].plot(y, label='S&P 500')
+# accuracy during training
+axs[1].plot(metrics[DataSplit.TRAIN]['accuracy'], label='Training')
+axs[1].plot(metrics[DataSplit.VALIDATE]['accuracy'], label='Validation')
 axs[1].legend()
-axs[1].set_title('Model Prediction vs. S&P 500')
-axs[1].set_xlabel('Time')
-axs[1].set_ylabel('Value')
-axs[1].axvline(len(y)*(1-test_split), color="tab:purple")
+axs[1].set_title(f'Accuracy')
+axs[1].set_xlabel('Epoch')
+axs[1].set_ylabel('Percent')
 
-plt.savefig('./images/plot.png')
+# balanced accuracy during training
+axs[2].plot(metrics[DataSplit.TRAIN]['balanced accuracy'], label='Training')
+axs[2].plot(metrics[DataSplit.VALIDATE]['balanced accuracy'], label='Validation')
+axs[2].legend()
+axs[2].set_title(f'Balanced Accuracy')
+axs[2].set_xlabel('Epoch')
+axs[2].set_ylabel('Percent')
+
+plt.tight_layout()
+plt.savefig('./plots/training.png')
+
+print('Plots saved.')
+
+print(trainer.get_classification_report(DataSplit.TRAIN))
+print(trainer.get_classification_report(DataSplit.VALIDATE))
+print(trainer.get_classification_report(DataSplit.TEST))
+print(trainer.get_classification_report(DataSplit.ALL))
 
 print('Done!')
