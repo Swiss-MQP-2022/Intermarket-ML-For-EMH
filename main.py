@@ -64,13 +64,15 @@ model = models.SimpleFFClassifier(X.shape[1], period, 100, 3, dropout=0)
 if cuda_available:
     model.cuda()  # put model on CUDA if present
 
+reduction = 'mean'
+
 #  Initialize loss, optimizer, and scheduler
-criterion = CrossEntropyLoss(reduction='mean')  # Loss criterion
+criterion = CrossEntropyLoss(reduction=reduction)  # Loss criterion
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-2, weight_decay=1e-2)  # Optimizer
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=10, verbose=False)  # Learning rate scheduler
 
 # Initialize trainer
-trainer = Trainer(model, criterion, optimizer, dataloader, scheduler=scheduler)
+trainer = Trainer(model, criterion, optimizer, dataloader, scheduler=scheduler, reduction=reduction)
 
 # !!! Train model !!!
 metrics = trainer.train_loop(epochs=50)

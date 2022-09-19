@@ -1,5 +1,4 @@
 from tqdm import tqdm
-from tqdm._utils import _term_move_up
 from enum import Enum
 import numpy as np
 
@@ -30,7 +29,8 @@ class Trainer:
                  criterion: nn.Module,
                  optimizer: torch.optim.Optimizer,
                  time_series_loader: TimeSeriesDataLoader,
-                 scheduler=None):
+                 scheduler=None,
+                 reduction='mean'):
         """
         :param model: model to train/evaluate
         :param criterion: loss module to use during training
@@ -50,6 +50,7 @@ class Trainer:
             DataSplit.ALL: self.time_series_loader.all_data_loader
         }
         self.cuda_available = torch.cuda.is_available()
+        self.reduction = reduction
 
         # this is an extremely jank way to dynamically get the number of classes because I don't want to pass it in
         self.n_classes = len(self.time_series_loader.dataset.__getitem__(0)[1])
@@ -80,7 +81,7 @@ class Trainer:
                 loss.backward()
                 self.optimizer.step()
 
-            total_loss += loss.item() * len(y_)  # need * len(y) when criterion reduction = 'mean'
+            total_loss += loss.item() * (len(y_) if self.reduction == 'mean' else 1)  # need * len(y) when criterion reduction = 'mean'
             confusion += confusion_matrix(y_.argmax(dim=1), output.argmax(dim=1), labels=range(self.n_classes))
 
         if split == DataSplit.VALIDATE and self.scheduler is not None:
