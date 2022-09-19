@@ -128,10 +128,5 @@ class SimpleFFClassifier(nn.Module):
         return output, None
 
     def forecast(self, x: torch.Tensor):
-        x_ = x.flatten(start_dim=1, end_dim=2)
-        y_0 = self.relu(self.in_layer(x_))
-        y_1 = self.relu(self.h1(y_0))
-        y_2 = self.relu(self.h2(y_1))
-        output = self.softmax(self.out_layer(y_2))
-
+        output = self.softmax(self.forward(x)[0])
         return output, None
