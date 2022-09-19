@@ -20,7 +20,7 @@ print(f'CUDA Available: {cuda_available}')
 if cuda_available:
     print(torch.cuda.get_device_name(0))
 
-# Load Data # TODO: figure out handling NaNs
+# Load Data
 spy = pd.read_csv(r'./data/stock/SPY.US.csv').set_index('date')  # Load data from file
 spy = utils.get_nonempty_float_columns(spy).dropna()  # filter to numeric columns. Drop NaNs
 
@@ -47,8 +47,8 @@ y = np.sign(pct_df['close'].to_numpy())[1:] + 1
 # y = np.sign(spy['close'].diff()).to_numpy()[1:] + 1  # convert y to direction classes
 
 # Put data on tensors
-X = torch.fft.fftn(torch.tensor(X), dim=0).float()  # Fourier transform
-# X = torch.tensor(X).float()
+# X = torch.fft.fftn(torch.tensor(X), dim=0).float()  # Fourier transform
+X = torch.tensor(X).float()
 y = F.one_hot(torch.tensor(y).long()).float()
 
 validation_split = 0.20
