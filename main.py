@@ -55,7 +55,7 @@ gscv = GridSearchCV(estimator=DecisionTreeClassifier(),
                     cv=ps,
                     refit=True)
 
-NUM_TRIALS = 100
+NUM_TRIALS = 50
 
 best_model_score = 0
 best_model = None
@@ -66,10 +66,7 @@ for i in tqdm(range(NUM_TRIALS)):
         best_model_score = gscv.best_score_
         best_model = gscv.best_estimator_
 
-
-# print(f'Mean CV score of best model: {gscv.best_score_}')
-# print(f'Best parameters: {gscv.best_params_}')
-# print('All CV results: ', gscv.cv_results_)
+print(f'Best score: {best_model_score}')
 
 # plt.figure(figsize=(20, 15))
 # tree.plot_tree(model, ax=plt.gca(), fontsize=10)
