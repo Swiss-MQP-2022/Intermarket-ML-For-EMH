@@ -1,5 +1,6 @@
 import json
 import itertools
+from math import floor
 
 import pandas as pd
 import numpy as np
@@ -34,17 +35,13 @@ period = 5
 features = X.shape[1]
 loader = TimeSeriesDataLoader(X, y, period=period, test_size=.20)
 
-# kfolds = 10
-
 # https://stackoverflow.com/questions/48390601/explicitly-specifying-test-train-sets-in-gridsearchcv
+validation_split = 0.2
 # The indices which have the value -1 will be kept in train.
-train_indices = np.full((len(loader.X_train),), -1, dtype=int)
+train_indices = np.full((floor(len(loader.X_train) * (1-validation_split)),), -1, dtype=int)
 # The indices which have zero or positive values, will be kept in test
-test_indices = np.full((len(loader.X_test),), 0, dtype=int)
-ps = PredefinedSplit(np.append(train_indices, test_indices))
-
-# NOTE: Need to provide full X and y when using PredefinedSplit for GridSearchCV
-grid_search_X = loader.X.reshape(-1, period * features)
+validation_indices = np.full((floor(len(loader.X_train) * validation_split),), 0, dtype=int)
+ps = PredefinedSplit(np.append(train_indices, validation_indices))
 
 param_grid = dict(splitter=['best', 'random'],
                   max_depth=[5, 10, 25, None],
@@ -55,30 +52,20 @@ gscv = GridSearchCV(estimator=DecisionTreeClassifier(),
                     param_grid=param_grid,
                     scoring='f1_weighted',
                     n_jobs=-1,
-                    cv=ps)
+                    cv=ps,
+                    refit=True)
 
-NUM_TRIALS = 10
+NUM_TRIALS = 100
 
-keys, values = zip(*param_grid.items())
-permutations_index = [json.dumps(dict(zip(keys, v)), sort_keys=True) for v in itertools.product(*values)]
-
-scores = pd.Series(0, name='score', index=permutations_index)
+best_model_score = 0
+best_model = None
 
 for i in tqdm(range(NUM_TRIALS)):
-    gscv.fit(grid_search_X, loader.y)
-    params_index = [json.dumps(params, sort_keys=True) for params in gscv.cv_results_['params']]
-    scores = scores.add(pd.Series(gscv.cv_results_['mean_test_score'], index=params_index))
+    gscv.fit(loader.X_train.reshape(-1, period * features), loader.y_train)
+    if gscv.best_score_ > best_model_score:
+        best_model_score = gscv.best_score_
+        best_model = gscv.best_estimator_
 
-scores /= NUM_TRIALS
-
-best_params = json.loads(str(scores.idxmax()))
-
-print(f'Best parameter combination: {best_params}')
-
-model = DecisionTreeClassifier(**best_params)
-model.fit(loader.X_train.reshape(-1, period * features), loader.y_train)
-
-# model = gscv.best_estimator_
 
 # print(f'Mean CV score of best model: {gscv.best_score_}')
 # print(f'Best parameters: {gscv.best_params_}')
@@ -89,12 +76,10 @@ model.fit(loader.X_train.reshape(-1, period * features), loader.y_train)
 # plt.tight_layout()
 # plt.show()
 
-print(f'Feature importance: {model.feature_importances_}')
-
-predicted_y_train = model.predict(loader.X_train.reshape(-1, period * features))
+predicted_y_train = best_model.predict(loader.X_train.reshape(-1, period * features))
 print('Train report:')
 print(classification_report(loader.y_train, predicted_y_train))
 
-predicted_y_test = model.predict(loader.X_test.reshape(-1, period * features))
+predicted_y_test = best_model.predict(loader.X_test.reshape(-1, period * features))
 print('Test report:')
 print(classification_report(loader.y_test, predicted_y_test))
