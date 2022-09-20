@@ -24,7 +24,7 @@ pct_df = utils.remove_outliers(pct_df)
 
 X = pct_df[["close"]][:-1].to_numpy()
 
-y = np.sign(pct_df['close'].to_numpy())[1:]
+y = np.sign(pct_df['close'].to_numpy())[1:] + 1
 y = y.astype(np.uint8)
 
 period = 10
