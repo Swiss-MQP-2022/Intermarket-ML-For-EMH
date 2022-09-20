@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from numpy.lib.stride_tricks import as_strided
 from sklearn.preprocessing import MinMaxScaler as Scaler
 from math import floor
 
@@ -8,48 +9,26 @@ import utils
 
 
 class TimeSeriesDataLoader:
-    def __init__(self, X, y, period=100, validation_size=0.2, test_size=0.2, random_state=1130):
-        items, features = X.shape
-        trim_x = items % period
-        X = X[:-trim_x]
-
-        self.X = X.reshape(-1, period, features)
-        self.y = y[:-trim_x].reshape(-1, 1)
-        dataset_length, period_length, features = self.X.shape
-
-        test_start = floor(dataset_length * (1 - test_size))  # Starting index of testing set
-        # subset_split = validation_size * (1 - test_size)
-        # train_indices, validation_indices = train_test_split(range(test_start), test_size=subset_split)
-        train_indices = range(test_start)
-        test_indices = range(test_start, len(self.X))
-
-        self.X_train = self.X[train_indices]
-        self.y_train = self.y[train_indices]
-        # self.X_val = self.X[validation_indices]
-        # self.y_val = self.y[validation_indices]
-        self.X_test = self.X[test_indices]
-        self.y_test = self.y[test_indices]
+    def __init__(self, X, y, period=100, test_size=0.2):
+        train_end = test_start = floor(len(X) * (1-test_size))
 
         scaler = Scaler(feature_range=(-1, 1))
+        scaler.fit(X[:train_end])
 
-        def scale_x(x_input, fit=False):
-            x_shape = x_input.shape
-            x_reshaped = x_input.reshape(-1, 1)
-            if fit:
-                scaler.fit(x_reshaped)
-            x_scaled = scaler.transform(x_reshaped)
-            x_out = x_scaled.reshape(x_shape)
-            return x_out
+        X = scaler.transform(X)
 
-        for feature in range(features):
-            x = self.X_train[:, :, feature]
-            self.X_train[:, :, feature] = scale_x(x, fit=True)
+        # https://stackoverflow.com/questions/43185589/sliding-windows-from-2d-array-that-slides-along-axis-0-or-rows-to-give-a-3d-arra
+        nd0 = X.shape[0] - period + 1
+        samples, features = X.shape
+        s0, s1 = X.strides
 
-            # x = self.X_val[:, :, feature]
-            # self.X_val[:, :, feature] = scale_x(x)
+        self.X = as_strided(X, shape=(nd0, period, features), strides=(s0, s0, s1))
+        self.y = y[period-1:].reshape(-1, 1)
 
-            x = self.X_test[:, :, feature]
-            self.X_test[:, :, feature] = scale_x(x, fit=False)
+        self.X_train = self.X[:train_end]
+        self.y_train = self.y[:train_end]
+        self.X_test = self.X[test_start:]
+        self.y_test = self.y[test_start:]
 
 
 if __name__ == "__main__":

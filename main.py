@@ -1,10 +1,11 @@
-from collections import Counter
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+from sklearn import tree
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import classification_report
+from sklearn.model_selection import GridSearchCV
 
 import utils
 from timeseries_dataset import TimeSeriesDataLoader
@@ -22,19 +23,27 @@ X_0 = spy.iloc[0]  # record initial raw X values
 pct_df = spy.pct_change()[1:]  # Compute percent change
 pct_df = utils.remove_outliers(pct_df)
 
-X = pct_df[["close"]][:-1].to_numpy()
+X = pct_df.to_numpy()[:-1]
 
-y = np.sign(pct_df['close'].to_numpy())[1:] + 1
-y = y.astype(np.uint8)
+y = np.sign(pct_df['close'].to_numpy())[1:]
 
-period = 10
-features = 1
+period = 5
+features = X.shape[1]
 dataloader = TimeSeriesDataLoader(X, y, period=period, test_size=.20)
 
-model = DecisionTreeClassifier(class_weight='balanced')
+model = DecisionTreeClassifier()
 model.fit(dataloader.X_train.reshape(-1, period * features), dataloader.y_train)
-predicted_y_test = model.predict(dataloader.X_test.reshape(-1, period * features))
-prediction_distribution = Counter(predicted_y_test)
 
-print("Distribution of predictions:", prediction_distribution)
+plt.figure(figsize=(20, 15))
+tree.plot_tree(model, ax=plt.gca(), fontsize=10)
+plt.tight_layout()
+plt.show()
+print('Feature importance:', model.feature_importances_)
+
+predicted_y_train = model.predict(dataloader.X_train.reshape(-1, period * features))
+print('Train report:')
+print(classification_report(dataloader.y_train, predicted_y_train))
+
+predicted_y_test = model.predict(dataloader.X_test.reshape(-1, period * features))
+print('Test report:')
 print(classification_report(dataloader.y_test, predicted_y_test))
