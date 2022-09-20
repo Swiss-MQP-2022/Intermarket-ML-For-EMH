@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from numpy.lib.stride_tricks import as_strided
+from numpy.lib import stride_tricks
 from sklearn.preprocessing import MinMaxScaler as Scaler
 from math import floor
 
@@ -22,7 +22,7 @@ class TimeSeriesDataLoader:
         samples, features = X.shape
         s0, s1 = X.strides
 
-        self.X = as_strided(X, shape=(nd0, period, features), strides=(s0, s0, s1))
+        self.X = stride_tricks.as_strided(X, shape=(nd0, period, features), strides=(s0, s0, s1))
         self.y = y[period-1:].reshape(-1, 1)
 
         self.X_train = self.X[:train_end]
