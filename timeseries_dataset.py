@@ -1,11 +1,6 @@
-import numpy as np
-import pandas as pd
-from sklearn.model_selection import train_test_split
 from numpy.lib import stride_tricks
 from sklearn.preprocessing import MinMaxScaler as Scaler
 from math import floor
-
-import utils
 
 
 class TimeSeriesDataLoader:
@@ -29,16 +24,3 @@ class TimeSeriesDataLoader:
         self.y_train = self.y[:train_end]
         self.X_test = self.X[test_start:]
         self.y_test = self.y[test_start:]
-
-
-if __name__ == "__main__":
-    spy = pd.read_csv(r'./data/stock/SPY.US.csv').set_index('date')  # Load data from file
-    spy = utils.get_nonempty_float_columns(spy).dropna()  # filter to numeric columns. Drop NaNs
-
-    pct_df = spy.pct_change()[1:]  # Compute percent change
-    pct_df = utils.remove_outliers(pct_df)
-
-    X = pct_df[:-1].to_numpy()
-    y = np.sign(pct_df['close'].to_numpy())[1:] + 1
-
-    dataloader = TimeSeriesDataLoader(X, y)
