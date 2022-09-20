@@ -15,9 +15,9 @@ class TimeSeriesDataLoader:
 
         self.X = X.reshape(-1, period, features)
         self.y = y[:-trim_x].reshape(-1, 1)
-        datset_length, period_length, features = self.X.shape
+        dataset_length, period_length, features = self.X.shape
 
-        test_start = floor(datset_length * (1 - test_size))  # Starting index of testing set
+        test_start = floor(dataset_length * (1 - test_size))  # Starting index of testing set
         # subset_split = validation_size * (1 - test_size)
         # train_indices, validation_indices = train_test_split(range(test_start), test_size=subset_split)
         train_indices = range(test_start)
@@ -32,22 +32,24 @@ class TimeSeriesDataLoader:
 
         scaler = Scaler(feature_range=(-1, 1))
 
-        def scale_x(x_input):
+        def scale_x(x_input, fit=False):
             x_shape = x_input.shape
             x_reshaped = x_input.reshape(-1, 1)
-            x_scaled = scaler.fit_transform(x_reshaped)
+            if fit:
+                scaler.fit(x_reshaped)
+            x_scaled = scaler.transform(x_reshaped)
             x_out = x_scaled.reshape(x_shape)
             return x_out
 
         for feature in range(features):
             x = self.X_train[:, :, feature]
-            self.X_train[:, :, feature] = scale_x(x)
+            self.X_train[:, :, feature] = scale_x(x, fit=True)
 
             # x = self.X_val[:, :, feature]
             # self.X_val[:, :, feature] = scale_x(x)
 
             x = self.X_test[:, :, feature]
-            self.X_test[:, :, feature] = scale_x(x)
+            self.X_test[:, :, feature] = scale_x(x, fit=False)
 
 
 if __name__ == "__main__":
