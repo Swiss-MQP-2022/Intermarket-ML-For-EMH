@@ -1,3 +1,5 @@
+from typing import Union, Protocol
+
 from tqdm import tqdm
 from enum import Enum
 import numpy as np
@@ -5,8 +7,49 @@ import numpy as np
 import torch
 from torch import nn
 from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.model_selection import TimeSeriesSplit, GridSearchCV, BaseCrossValidator
 
 from timeseries_dataset import TorchTimeSeriesDataLoader
+
+
+class Estimator(Protocol):
+    def fit(self, X, y):
+        ...
+
+    def predict(self, X, y) -> ...:
+        ...
+
+
+class ScikitModelTrainer:
+    def __init__(self,
+                 estimator: Estimator,
+                 use_grid_search: bool = False,
+                 scoring: str = 'f1_weighted',  # Currently forcing string-specified scorers only
+                 n_jobs: int = -1,
+                 cv: Union[int, BaseCrossValidator] = 5,
+                 param_grid: dict[str, any] = None,
+                 gs_kws: dict[str, any] = None):
+        self.estimator = estimator
+        self.use_grid_search = use_grid_search
+
+        if isinstance(cv, int):
+            cv = TimeSeriesSplit(n_splits=cv)
+
+        if self.use_grid_search:
+            self.gscv = GridSearchCV(estimator=self.estimator,
+                                     scoring=scoring,
+                                     param_grid=param_grid,
+                                     n_jobs=n_jobs,
+                                     cv=cv,
+                                     refit=True,
+                                     **gs_kws)
+
+    def train(self, X, y):
+        if self.use_grid_search:
+            self.gscv.fit(X, y)
+            self.estimator = self.gscv.best_estimator_
+        else:
+            self.estimator.fit(X, y)
 
 
 class DataSplit(Enum):
@@ -81,7 +124,8 @@ class TorchTrainer:
                 loss.backward()
                 self.optimizer.step()
 
-            total_loss += loss.item() * (len(y_) if self.reduction == 'mean' else 1)  # need * len(y) when criterion reduction = 'mean'
+            total_loss += loss.item() * (
+                len(y_) if self.reduction == 'mean' else 1)  # need * len(y) when criterion reduction = 'mean'
             confusion += confusion_matrix(y_.argmax(dim=1), output.argmax(dim=1), labels=range(self.n_classes))
 
         if split == DataSplit.VALIDATE and self.scheduler is not None:
