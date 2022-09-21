@@ -1,6 +1,7 @@
 from tqdm import tqdm
 from enum import Enum
 import numpy as np
+from numpy.typing import ArrayLike
 
 import torch
 from torch import nn
@@ -19,11 +20,11 @@ class DataSplit(Enum):
 METRIC_NAMES = ['loss', 'accuracy', 'balanced accuracy']
 
 
-def append_metrics(metric_dict: dict, data: dict):
+def append_metrics(metric_dict: dict[str, ArrayLike[np.number]], data: dict[str, np.number]):
     [metric_dict[metric].append(data[metric]) for metric in METRIC_NAMES]
 
 
-class Trainer:
+class TorchTrainer:
     def __init__(self,
                  model: nn.Module,
                  criterion: nn.Module,
@@ -55,7 +56,7 @@ class Trainer:
         # this is an extremely jank way to dynamically get the number of classes because I don't want to pass it in
         self.n_classes = len(self.time_series_loader.dataset.__getitem__(0)[1])
 
-    def train_validate(self, split: DataSplit) -> dict:
+    def train_validate(self, split: DataSplit) -> dict[str, np.number]:
         if split == DataSplit.ALL:
             raise Exception("Error: ALL data split is invalid for train_validate.")
 
@@ -96,16 +97,16 @@ class Trainer:
 
         return metrics
 
-    def train(self) -> dict:
+    def train(self) -> dict[str, np.number]:
         return self.train_validate(DataSplit.TRAIN)
 
-    def validate(self) -> dict:
+    def validate(self) -> dict[str, np.number]:
         return self.train_validate(DataSplit.VALIDATE)
 
-    def test(self) -> dict:
+    def test(self) -> dict[str, np.number]:
         return self.train_validate(DataSplit.TEST)
 
-    def train_loop(self, epochs=100) -> dict:
+    def train_loop(self, epochs=100) -> dict[DataSplit, dict[str, ArrayLike[np.number]]]:
         metrics = {
             DataSplit.TRAIN: {metric: [] for metric in METRIC_NAMES},
             DataSplit.VALIDATE: {metric: [] for metric in METRIC_NAMES}
