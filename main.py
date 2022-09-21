@@ -13,18 +13,36 @@ from trainer import ScikitModelTrainer, DataSplit
 # Load all the data
 all_data = utils.load_data()
 
-# Generate percent change on S&P 500 data
-pct_df = utils.make_pct_data(all_data['stock']['SPY.US'])[1:]
+# Generate the FULL available y set
+y_base = utils.make_pct_series(all_data['stock']['SPY.US']['close']).shift(-1)[:-1].apply(np.sign)
 
-# Get
-X = pct_df[:-1]
-y = np.sign(pct_df['close'].to_numpy())[1:]
+# 5 brownian motion features chosen arbitrarily
+brn_features = 5
+
+# Generate brownian motion
+brn_raw_X = utils.generate_brownian_motion(len(y_base), brn_features, cumulative=True)
+brn_raw_y = y_base
+
+# Generate normal distribution sample
+norm_pct_X = utils.generate_brownian_motion(len(y_base), brn_features)
+norm_pct_y = y_base
+
+# Load raw S&P 500 data
+spy_raw_X = all_data['stock']['SPY.US'][:-1]
+spy_raw_y = y_base.loc[spy_raw_X.index]
+
+# Generate percent change on S&P 500 data
+spy_pct_data = utils.make_pct_data(all_data['stock']['SPY.US'])[1:-1]
+spy_pct_X = spy_pct_data
+spy_pct_y = y_base.loc[spy_pct_data.index]
 
 period = 5
-features = X.shape[1]
 
 datasets = [
-    TimeSeriesDataset(X, y, period=period, name='SPY')
+    TimeSeriesDataset(brn_raw_X, brn_raw_y, period=period, name='Brownian Motion'),
+    TimeSeriesDataset(norm_pct_X, norm_pct_y, period=period, name='Normal Sample'),
+    TimeSeriesDataset(spy_raw_X, spy_raw_y, period=period, name='SPY Raw'),
+    TimeSeriesDataset(spy_pct_X, spy_pct_y, period=period, name='SPY %')
 ]
 
 models = [
