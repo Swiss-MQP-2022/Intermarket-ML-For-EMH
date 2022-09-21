@@ -105,25 +105,47 @@ def load_data(path=r'./data', set_index_to_date=True, zero_col_thresh=1) -> dict
     return data
 
 
-def make_pct_data(df: pd.DataFrame, zero_col_thresh=1) -> pd.DataFrame:
+def make_pct_series(data: pd.Series, fill_method=None) -> pd.Series:
+    """
+    Converts a series to percent-change
+    :param data: series to convert
+    :param fill_method: fill method to pass to pct_change. Drop NaNs instead if not provided (default)
+    :return:
+    """
+    if fill_method is None:  # no fill method provided
+        data = data.dropna()  # drop NaNs
+        data = data[data != 0]  # drop zeros
+    else:  # fill method provided
+        data = data.replace(0, method=fill_method)  # replace zeros using fill method
+    return data.pct_change(fill_method=fill_method)  # compute percent change (fills NaNs if fill_method is provided)
+
+
+def make_pct_data(df: pd.DataFrame, fill_method=None, zero_col_thresh=1) -> pd.DataFrame:
     """
     Convert a dataframe to percent-change
     :param df: dataframe to convert
+    :param fill_method: fill method to pass to pct_change. Drop NaNs instead if not provided (default)
     :param zero_col_thresh: proportion of a column that must be zero to drop it
     :return: percent-change data
     """
     df = get_nonempty_numeric_columns(df)  # Filter to only non-empty numeric columns
     if zero_col_thresh:  # ignore columns with lots of zeros if a threshold has been set
         df = drop_zero_cols(df, thresh=zero_col_thresh)
-    df = drop_zero_rows(df)  # ignore rows with zeros
-    return df.dropna().pct_change()  # compute and return percent change
+
+    if fill_method is None:  # no fill method has been set
+        df = df.dropna()  # drop NaNs
+        df = drop_zero_rows(df)  # drop zeros
+    else:  # fill method provided
+        df = df.replace(0, method=fill_method)  # replace zeros using fill method
+    return df.pct_change(fill_method=fill_method)  # compute and return percent change (uses fill method if provided)
 
 
-def make_pct_data_dict(data: dict[str, dict[str, pd.DataFrame]], zero_col_thresh=1) -> dict[str, dict[str, pd.DataFrame]]:
+def make_pct_data_dict(data: dict[str, dict[str, pd.DataFrame]], fill_method=None, zero_col_thresh=1) -> dict[str, dict[str, pd.DataFrame]]:
     """
     Convert a dictionary of data to percent-change
-    :param zero_col_thresh: proportion of a column that must be zero to drop it
     :param data: dictionary of data to convert
+    :param fill_method: fill method to pass to pct_change. Drop NaNs instead if not provided (default)
+    :param zero_col_thresh: proportion of a column that must be zero to drop it
     :return: percent-change data dictionary
     """
     pct_data = {}
@@ -133,6 +155,7 @@ def make_pct_data_dict(data: dict[str, dict[str, pd.DataFrame]], zero_col_thresh
         for asset_name in data[asset_type].keys():  # for each asset
             # compute and save percent-change data
             pct_data[asset_type][asset_name] = make_pct_data(data[asset_type][asset_name],
+                                                             fill_method=fill_method,
                                                              zero_col_thresh=zero_col_thresh)
 
     return pct_data

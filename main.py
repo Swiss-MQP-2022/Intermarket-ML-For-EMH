@@ -10,10 +10,13 @@ import utils
 from timeseries_dataset import TimeSeriesDataset
 from trainer import ScikitModelTrainer, DataSplit
 
+# Load all the data
 all_data = utils.load_data()
 
+# Generate percent change on S&P 500 data
 pct_df = utils.make_pct_data(all_data['stock']['SPY.US'])[1:]
 
+# Get
 X = pct_df[:-1]
 y = np.sign(pct_df['close'].to_numpy())[1:]
 
