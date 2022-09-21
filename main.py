@@ -9,19 +9,22 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
 
 import utils
-from timeseries_dataset import NumpyTimeSeriesDataLoader
+from timeseries_dataset import TimeSeriesDataset
 from trainer import ScikitModelTrainer, DataSplit
 
 all_data = utils.load_data()
 
-X = utils.make_pct_data(all_data['stock']['SPY.US'])[1:]
-y = np.sign(X['close'].to_numpy())[1:]
-X = X[:-1]
+pct_df = utils.make_pct_data(all_data['stock']['SPY.US'])[1:]
+
+X = pct_df[:-1]
+y = np.sign(pct_df['close'].to_numpy())[1:]
 
 period = 5
 features = X.shape[1]
 
-datasets = [NumpyTimeSeriesDataLoader(X, y, period=period, name='SPY')]
+datasets = [
+    TimeSeriesDataset(X, y, period=period, name='SPY')
+]
 
 models = [
     dict(estimator=DecisionTreeClassifier(),

@@ -16,7 +16,7 @@ class Scaler(Protocol):
     def fit_transform(self, X) -> np.ndarray: ...
 
 
-class NumpyTimeSeriesDataLoader:
+class TimeSeriesDataset:
     def __init__(self, X, y,
                  period=100,
                  test_size=0.2,
