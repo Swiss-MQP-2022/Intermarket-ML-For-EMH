@@ -1,5 +1,3 @@
-import json
-import itertools
 from math import floor
 
 import pandas as pd
@@ -10,7 +8,7 @@ from tqdm import tqdm
 from sklearn import tree
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import classification_report
-from sklearn.model_selection import GridSearchCV, PredefinedSplit, RepeatedKFold, cross_val_score
+from sklearn.model_selection import GridSearchCV, PredefinedSplit, TimeSeriesSplit
 
 import utils
 from timeseries_dataset import TimeSeriesDataLoader
@@ -52,10 +50,10 @@ gscv = GridSearchCV(estimator=DecisionTreeClassifier(),
                     param_grid=param_grid,
                     scoring='f1_weighted',
                     n_jobs=-1,
-                    cv=ps,
+                    cv=TimeSeriesSplit(n_splits=5),
                     refit=True)
 
-NUM_TRIALS = 50
+NUM_TRIALS = 1
 
 best_model_score = 0
 best_model = None
@@ -67,11 +65,6 @@ for i in tqdm(range(NUM_TRIALS)):
         best_model = gscv.best_estimator_
 
 print(f'Best score: {best_model_score}')
-
-# plt.figure(figsize=(20, 15))
-# tree.plot_tree(model, ax=plt.gca(), fontsize=10)
-# plt.tight_layout()
-# plt.show()
 
 predicted_y_train = best_model.predict(loader.X_train.reshape(-1, period * features))
 print('Train report:')
