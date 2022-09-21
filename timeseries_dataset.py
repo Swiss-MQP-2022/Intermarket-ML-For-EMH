@@ -20,8 +20,10 @@ class NumpyTimeSeriesDataLoader:
     def __init__(self, X, y,
                  period=100,
                  test_size=0.2,
+                 name=None,
                  scaler: Scaler = MinMaxScaler(feature_range=(-1, 1)),
                  flatten=True):
+        self.name = name
         self.scaler = scaler
 
         train_end = test_start = floor(len(X) * (1 - test_size))
@@ -39,7 +41,7 @@ class NumpyTimeSeriesDataLoader:
         if flatten:
             self.X = self.X.reshape(-1, period * features)
 
-        self.y = y[period - 1:].reshape(-1, 1)
+        self.y = y[period - 1:]
 
         self.X_train = self.X[:train_end]
         self.y_train = self.y[:train_end]

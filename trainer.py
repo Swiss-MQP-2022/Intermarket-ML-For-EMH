@@ -23,14 +23,13 @@ class Estimator(Protocol):
 class ScikitModelTrainer:
     def __init__(self,
                  estimator: Estimator,
-                 use_grid_search: bool = False,
+                 param_grid: dict[str, any] = None,
                  scoring: str = 'f1_weighted',  # Currently forcing string-specified scorers only
                  n_jobs: int = -1,
                  cv: Union[int, BaseCrossValidator] = 5,
-                 param_grid: dict[str, any] = None,
-                 gs_kws: dict[str, any] = None):
+                 **gs_kws: dict[str, any]):
         self.estimator = estimator
-        self.use_grid_search = use_grid_search
+        self.use_grid_search = param_grid is not None
 
         if isinstance(cv, int):
             cv = TimeSeriesSplit(n_splits=cv)
@@ -50,6 +49,8 @@ class ScikitModelTrainer:
             self.estimator = self.gscv.best_estimator_
         else:
             self.estimator.fit(X, y)
+
+        return self.estimator
 
 
 class DataSplit(Enum):
