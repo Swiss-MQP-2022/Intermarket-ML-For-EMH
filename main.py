@@ -11,7 +11,7 @@ from sklearn.metrics import classification_report
 from sklearn.model_selection import GridSearchCV, PredefinedSplit, TimeSeriesSplit
 
 import utils
-from timeseries_dataset import TimeSeriesDataLoader
+from timeseries_dataset import NumpyTimeSeriesDataLoader
 
 # Load Data
 spy = pd.read_csv(r'./data/stock/SPY.US.csv').set_index('date')  # Load data from file
@@ -31,7 +31,7 @@ y = np.sign(pct_df['close'].to_numpy())[1:]
 
 period = 5
 features = X.shape[1]
-loader = TimeSeriesDataLoader(X, y, period=period, test_size=.20)
+loader = NumpyTimeSeriesDataLoader(X, y, period=period, test_size=.20)
 
 # https://stackoverflow.com/questions/48390601/explicitly-specifying-test-train-sets-in-gridsearchcv
 validation_split = 0.2
@@ -59,17 +59,17 @@ best_model_score = 0
 best_model = None
 
 for i in tqdm(range(NUM_TRIALS)):
-    gscv.fit(loader.X_train.reshape(-1, period * features), loader.y_train)
+    gscv.fit(loader.X_train, loader.y_train)
     if gscv.best_score_ > best_model_score:
         best_model_score = gscv.best_score_
         best_model = gscv.best_estimator_
 
 print(f'Best score: {best_model_score}')
 
-predicted_y_train = best_model.predict(loader.X_train.reshape(-1, period * features))
+predicted_y_train = best_model.predict(loader.X_train)
 print('Train report:')
 print(classification_report(loader.y_train, predicted_y_train))
 
-predicted_y_test = best_model.predict(loader.X_test.reshape(-1, period * features))
+predicted_y_test = best_model.predict(loader.X_test)
 print('Test report:')
 print(classification_report(loader.y_test, predicted_y_test))

@@ -6,7 +6,7 @@ import torch
 from torch import nn
 from sklearn.metrics import classification_report, confusion_matrix
 
-from timeseries_dataset import TimeSeriesDataLoader
+from timeseries_dataset import NumpyTimeSeriesDataLoader
 
 
 class DataSplit(Enum):
@@ -28,7 +28,7 @@ class Trainer:
                  model: nn.Module,
                  criterion: nn.Module,
                  optimizer: torch.optim.Optimizer,
-                 time_series_loader: TimeSeriesDataLoader,
+                 time_series_loader: NumpyTimeSeriesDataLoader,
                  scheduler=None,
                  reduction='mean'):
         """
