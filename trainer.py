@@ -28,6 +28,14 @@ class ScikitModelTrainer:
                  n_jobs: int = -1,
                  cv: Union[int, BaseCrossValidator] = 5,
                  **gs_kws: dict[str, any]):
+        """
+        :param estimator: Scikit-Learn estimator to fit
+        :param param_grid: parameter grid to search using GridSearchCV. Fit estimator directly if None (default)
+        :param scoring: scoring technique to use in GridSearchCV
+        :param n_jobs: jobs to use in GridSearchCV
+        :param cv: cross-validator to use in GridSearchCV or number of folds to use with TimeSeriesSplit if an integer
+        :param gs_kws: additional keyword arguments to pass to GridSearchCV
+        """
         self.estimator = estimator
         self.use_grid_search = param_grid is not None
 
@@ -44,6 +52,12 @@ class ScikitModelTrainer:
                                      **gs_kws)
 
     def train(self, X, y):
+        """
+        Fits the provided data to the trainer's estimator. Uses GridSearchCV if available
+        :param X: input data
+        :param y: target data
+        :return: fitted estimator
+        """
         if self.use_grid_search:
             self.gscv.fit(X, y)
             self.estimator = self.gscv.best_estimator_
