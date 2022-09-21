@@ -1,7 +1,6 @@
 from tqdm import tqdm
 from enum import Enum
 import numpy as np
-from numpy.typing import ArrayLike
 
 import torch
 from torch import nn
@@ -20,7 +19,7 @@ class DataSplit(Enum):
 METRIC_NAMES = ['loss', 'accuracy', 'balanced accuracy']
 
 
-def append_metrics(metric_dict: dict[str, ArrayLike[np.number]], data: dict[str, np.number]):
+def append_metrics(metric_dict: dict[str, list[np.number]], data: dict[str, np.number]):
     [metric_dict[metric].append(data[metric]) for metric in METRIC_NAMES]
 
 
@@ -106,7 +105,7 @@ class TorchTrainer:
     def test(self) -> dict[str, np.number]:
         return self.train_validate(DataSplit.TEST)
 
-    def train_loop(self, epochs=100) -> dict[DataSplit, dict[str, ArrayLike[np.number]]]:
+    def train_loop(self, epochs=100) -> dict[DataSplit, dict[str, list[np.number]]]:
         metrics = {
             DataSplit.TRAIN: {metric: [] for metric in METRIC_NAMES},
             DataSplit.VALIDATE: {metric: [] for metric in METRIC_NAMES}
