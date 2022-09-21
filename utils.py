@@ -174,14 +174,19 @@ def remove_outliers_dict(data: dict[str, dict[str, pd.DataFrame]]) -> dict[str, 
     return new_data
 
 
-def join_datasets(data: list[pd.DataFrame], flatten_columns=True):
+def join_datasets(data: list[pd.DataFrame], y: pd.Series = None, flatten_columns=True):
     """
     Join a list of datasets
     :param data: list of dataframes to join
+    :param y: separate series to filter by remaining indices of new dataset
     :param flatten_columns: whether to flatten the column names
     :return: Joined dataset
     """
     joined = pd.concat(data, axis=1, join='inner', keys=[df.attrs['name'] for df in data])
     if flatten_columns:
         joined.columns = joined.columns.to_flat_index()
+
+    if y is not None:
+        return joined, y.loc[joined.index]
+
     return joined
