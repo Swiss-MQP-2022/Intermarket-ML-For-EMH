@@ -14,7 +14,7 @@ from trainer import ScikitModelTrainer, DataSplit
 all_data = utils.load_data()
 
 # Generate the FULL available y set
-y_base = utils.make_pct_series(all_data['stock']['SPY.US']['close']).shift(-1)[:-1].apply(np.sign)
+y_base = utils.make_pct_series(all_data['stock']['SPY.US']['close']).shift(-1).apply(np.sign)[:-1]
 
 # 5 brownian motion features chosen arbitrarily
 brn_features = 5
