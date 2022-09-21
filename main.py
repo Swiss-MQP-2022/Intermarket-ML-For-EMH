@@ -32,9 +32,8 @@ spy_raw_X = all_data['stock']['SPY.US'][:-1]
 spy_raw_y = y_base.loc[spy_raw_X.index]
 
 # Generate percent change on S&P 500 data
-spy_pct_data = utils.make_pct_data(all_data['stock']['SPY.US'])[1:-1]
-spy_pct_X = spy_pct_data
-spy_pct_y = y_base.loc[spy_pct_data.index]
+spy_pct_X = utils.make_pct_data(all_data['stock']['SPY.US'])[1:-1]
+spy_pct_y = y_base.loc[spy_pct_X.index]
 
 period = 5
 
