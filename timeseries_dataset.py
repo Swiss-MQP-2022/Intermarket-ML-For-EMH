@@ -1,23 +1,35 @@
 from math import floor
+from typing import Protocol
 
 import numpy as np
 from numpy.lib import stride_tricks
 
-from sklearn.preprocessing import MinMaxScaler as Scaler
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 
 from torch.utils.data import Dataset, Subset, DataLoader
 
 
+class Scaler(Protocol):
+    def fit(self, X): ...
+    def transform(self, X) -> np.ndarray: ...
+    def fit_transform(self, X) -> np.ndarray: ...
+
+
 class NumpyTimeSeriesDataLoader:
-    def __init__(self, X, y, period=100, test_size=0.2, flatten=True):
+    def __init__(self, X, y,
+                 period=100,
+                 test_size=0.2,
+                 scaler: Scaler = MinMaxScaler(feature_range=(-1, 1)),
+                 flatten=True):
+        self.scaler = scaler
+
         train_end = test_start = floor(len(X) * (1 - test_size))
         features = X.shape[1]
 
-        scaler = Scaler(feature_range=(-1, 1))
-        scaler.fit(X[:train_end])
+        self.scaler.fit(X[:train_end])
 
-        X = scaler.transform(X)
+        X = self.scaler.transform(X)
 
         # https://stackoverflow.com/questions/43185589/sliding-windows-from-2d-array-that-slides-along-axis-0-or-rows-to-give-a-3d-arra
         nd0 = X.shape[0] - period + 1
