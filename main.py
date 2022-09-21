@@ -65,8 +65,7 @@ for model in models:
     reports[estimator_name] = {}
 
     for data in datasets:
-        print(
-            f'Fitting {estimator_name} on {data.name}{" using GridSearchCV" if "param_grid" in model.keys() else ""}...')
+        print(f'Fitting {estimator_name} on {data.name}{" using GridSearchCV" if "param_grid" in model.keys() else ""}...')
 
         clf = trainer.train(data.X_train, data.y_train)
         predicted_y_train = clf.predict(data.X_train)
