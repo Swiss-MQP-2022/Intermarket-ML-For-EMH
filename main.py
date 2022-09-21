@@ -17,7 +17,7 @@ from timeseries_dataset import NumpyTimeSeriesDataLoader
 
 # Load Data
 spy = pd.read_csv(r'./data/stock/SPY.US.csv').set_index('date')  # Load data from file
-spy = utils.get_nonempty_float_columns(spy).dropna()  # filter to numeric columns. Drop NaNs
+spy = utils.get_nonempty_numeric_columns(spy).dropna()  # filter to numeric columns. Drop NaNs
 
 X_0 = spy.iloc[0]  # record initial raw X values
 
