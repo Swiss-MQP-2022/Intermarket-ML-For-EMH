@@ -1,121 +1,77 @@
-import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 
-import torch
-import torch.nn.functional as F
-from torch.nn import CrossEntropyLoss
-
-from sklearn.preprocessing import MinMaxScaler as Scaler
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.svm import SVC
+from sklearn.neighbors import KNeighborsClassifier as KNN
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report
 
 import utils
-import models
-from timeseries_dataset import TimeSeriesDataLoader
-from trainer import Trainer
-from trainer import DataSplit
+from timeseries_dataset import TimeSeriesDataset
+from trainer import ScikitModelTrainer, DataSplit
 
-# Get CUDA availability
-cuda_available = torch.cuda.is_available()
-print(f'CUDA Available: {cuda_available}')
-if cuda_available:
-    print(torch.cuda.get_device_name(0))
+# Load all the data
+all_data = utils.load_data()
 
-# Load Data
-spy = pd.read_csv(r'./data/stock/SPY.US.csv').set_index('date')  # Load data from file
-spy = utils.get_nonempty_float_columns(spy).dropna()  # filter to numeric columns. Drop NaNs
+# Generate the FULL available y set
+y_base = utils.make_pct_series(all_data['stock']['SPY.US']['close']).shift(-1).apply(np.sign)[:-1]
 
-X_0 = spy.iloc[0]  # record initial raw X values
+# 5 random data features (chosen arbitrarily)
+brn_features = 5
 
-# brn = utils.generate_brownian_motion(len(spy), len(spy.columns), initial=X_0.to_numpy())
-# print(len(spy))
+# Generate brownian motion
+brn_raw_X = utils.generate_brownian_motion(len(y_base), brn_features, cumulative=True)
+brn_raw_y = y_base
 
-pct_df = spy.pct_change()[1:]  # Compute percent change
-pct_df = utils.remove_outliers(pct_df)
+# Generate normal distribution sample
+norm_pct_X = utils.generate_brownian_motion(len(y_base), brn_features)
+norm_pct_y = y_base
 
-# brn = utils.generate_brownian_motion(len(pct_df), len(pct_df.columns), cumulative=False)
+# Load raw S&P 500 data
+spy_raw_X = all_data['stock']['SPY.US'][:-1]
+spy_raw_y = y_base.loc[spy_raw_X.index]
 
-X_scaler = Scaler(feature_range=(-1, 1))  # Initialize scalers for normalization
-X = X_scaler.fit_transform(pct_df[:-1])  # normalize X data
-# # X = X_scaler.fit_transform(utils.pct_to_cumulative(pct_df, X_0)[:-1])  # normalize X data
+# Generate percent change on S&P 500 data
+spy_pct_X = utils.make_pct_data(all_data['stock']['SPY.US'])[1:-1]
+spy_pct_y = y_base.loc[spy_pct_X.index]
 
-# X_scaler = Scaler()  # Initialize scalers for normalization
-# X = X_scaler.fit_transform(brn[:-1])  # normalize X data
-# X = X_scaler.fit_transform(spy[:-1])  # normalize X data
+period = 5
 
-y = np.sign(pct_df['close'].to_numpy())[1:] + 1
+datasets = [
+    TimeSeriesDataset(brn_raw_X, brn_raw_y, period=period, name='Brownian Motion'),
+    TimeSeriesDataset(norm_pct_X, norm_pct_y, period=period, name='Normal Sample'),
+    TimeSeriesDataset(spy_raw_X, spy_raw_y, period=period, name='SPY Raw'),
+    TimeSeriesDataset(spy_pct_X, spy_pct_y, period=period, name='SPY %')
+]
 
-# y = np.sign(spy['close'].diff()).to_numpy()[1:] + 1  # convert y to direction classes
+models = [
+    dict(estimator=DecisionTreeClassifier(),
+         param_grid=dict(splitter=['best', 'random'],
+                         max_depth=[5, 10, 25, None],
+                         min_samples_split=[2, 5, 10, 50],
+                         min_samples_leaf=[1, 5, 10])),
 
-# Put data on tensors
-# X = torch.fft.fftn(torch.tensor(X), dim=0).float()  # Fourier transform
-X = torch.tensor(X).float()
-y = F.one_hot(torch.tensor(y).long()).float()
+    dict(estimator=SVC()),
+    dict(estimator=KNN()),
+    dict(estimator=LogisticRegression())
+]
 
-validation_split = 0.20
-test_split = 0.20
-period = 100
-batch_size = 100
+reports = {}
 
-# Create data loader
-dataloader = TimeSeriesDataLoader(X, y, validation_split=validation_split, test_split=test_split, period=period, batch_size=batch_size)
+for model in models:
+    trainer = ScikitModelTrainer(**model)
+    estimator_name = model['estimator'].__class__.__name__
+    reports[estimator_name] = {}
 
-# Initialize model
-# model = models.SimpleLSTMClassifier(X.shape[1], 100, 3, batch_first=True, dropout=0.2)
-model = models.SimpleFFClassifier(X.shape[1], period, 100, 3, dropout=0)
-if cuda_available:
-    model.cuda()  # put model on CUDA if present
+    for data in datasets:
+        print(f'Fitting {estimator_name} on {data.name}{" using GridSearchCV" if "param_grid" in model.keys() else ""}...')
 
-reduction = 'mean'
-
-#  Initialize loss, optimizer, and scheduler
-criterion = CrossEntropyLoss(reduction=reduction)  # Loss criterion
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-2, weight_decay=1e-2)  # Optimizer
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=10, verbose=False)  # Learning rate scheduler
-
-# Initialize trainer
-trainer = Trainer(model, criterion, optimizer, dataloader, scheduler=scheduler, reduction=reduction)
-
-# !!! Train model !!!
-metrics = trainer.train_loop(epochs=50)
-
-print('Creating plots...')
-
-
-# Plot creating. NOTE: MAKE SURE METRICS AGREE WITH METRIC_NAMES IN TRAINER
-fig, axs = plt.subplots(ncols=3, figsize=(15, 5))
-
-# loss during training
-axs[0].plot(metrics[DataSplit.TRAIN]['loss'], label='Training')
-axs[0].plot(metrics[DataSplit.VALIDATE]['loss'], label='Validation')
-axs[0].legend()
-axs[0].set_title(f'Model Loss ({criterion.__class__.__name__})')
-axs[0].set_xlabel('Epoch')
-axs[0].set_ylabel('Loss')
-
-# accuracy during training
-axs[1].plot(metrics[DataSplit.TRAIN]['accuracy'], label='Training')
-axs[1].plot(metrics[DataSplit.VALIDATE]['accuracy'], label='Validation')
-axs[1].legend()
-axs[1].set_title(f'Accuracy')
-axs[1].set_xlabel('Epoch')
-axs[1].set_ylabel('Percent')
-
-# balanced accuracy during training
-axs[2].plot(metrics[DataSplit.TRAIN]['balanced accuracy'], label='Training')
-axs[2].plot(metrics[DataSplit.VALIDATE]['balanced accuracy'], label='Validation')
-axs[2].legend()
-axs[2].set_title(f'Balanced Accuracy')
-axs[2].set_xlabel('Epoch')
-axs[2].set_ylabel('Percent')
-
-plt.tight_layout()
-plt.savefig('./plots/training.png')
-
-print('Plots saved.')
-
-print(trainer.get_classification_report(DataSplit.TRAIN))
-print(trainer.get_classification_report(DataSplit.VALIDATE))
-print(trainer.get_classification_report(DataSplit.TEST))
-print(trainer.get_classification_report(DataSplit.ALL))
+        clf = trainer.train(data.X_train, data.y_train)
+        predicted_y_train = clf.predict(data.X_train)
+        predicted_y_test = clf.predict(data.X_test)
+        reports[estimator_name][data.name] = {
+            DataSplit.TRAIN: classification_report(data.y_train, predicted_y_train, zero_division=0, output_dict=True),
+            DataSplit.TEST: classification_report(data.y_test, predicted_y_test, zero_division=0, output_dict=True)
+        }
 
 print('Done!')
