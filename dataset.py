@@ -9,11 +9,20 @@ from sklearn.model_selection import train_test_split
 
 from torch.utils.data import Dataset, Subset, DataLoader
 
+import utils
+
 
 class Scaler(Protocol):
     def fit(self, X): ...
+
     def transform(self, X) -> np.ndarray: ...
+
     def fit_transform(self, X) -> np.ndarray: ...
+
+
+
+
+
 
 
 class TimeSeriesDataset:
@@ -65,6 +74,30 @@ class TimeSeriesDataset:
         self.y_train = self.y[:train_end]
         self.X_test = self.X[test_start:]
         self.y_test = self.y[test_start:]
+
+
+class AssetDataset(TimeSeriesDataset):
+    def __init__(self, symbols, data, y, period=5, scaler=None):
+        """
+        :param symbols: list of tuples (asset type, SYMBOL)
+        :param data:
+        :param y:
+        :param period:
+        :param scaler:
+        """
+        self.symbols = symbols
+        self.dfs = [utils.get_df_from_symbol(asset_type, symbol, data) for asset_type, symbol in self.symbols]
+        self.columns = ["close"]
+        X = []
+
+        for df in self.dfs:
+            df = df[:-1]  # trim
+            df_pct = utils.make_pct_data(df)[1:-1]
+            X.append(df_pct)
+
+        X = utils.join_datasets(X)
+        X = X[self.columns]
+        super().__init__(X, y, period=period, scaler=scaler)
 
 
 class TorchTimeSeriesDataset(Dataset):

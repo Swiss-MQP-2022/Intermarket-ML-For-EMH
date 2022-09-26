@@ -7,8 +7,17 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
 
 import utils
-from timeseries_dataset import TimeSeriesDataset
+from dataset import TimeSeriesDataset, AssetDataset
 from trainer import ScikitModelTrainer, DataSplit
+
+dataset_symbol_list = {
+    "simple" : [("stock", "SPY.US")],
+    "forex": [("stock", "SPY.US"), ("forex", "USDGBP.FOREX"), ("forex", "USDEUR.FOREX")],
+    "bond": [("stock", "SPY.US"), ("bond", "US10Y.GBOND"), ("bond", "US5Y.GBOND")],
+    "future": [("stock", "SPY.US"), ("future", "ES.COMM"), ("future", "NK.COMM"), ("future", "RTY.COMM")]
+}
+
+
 
 # Load all the data
 all_data = utils.load_data()
@@ -27,9 +36,6 @@ brn_raw_y = y_base
 norm_pct_X = utils.generate_brownian_motion(len(y_base), brn_features)
 norm_pct_y = y_base
 
-# Load raw S&P 500 data
-spy_raw_X = all_data['stock']['SPY.US'][:-1]
-spy_raw_y = y_base.loc[spy_raw_X.index]
 
 # Generate percent change on S&P 500 data
 spy_pct_X = utils.make_pct_data(all_data['stock']['SPY.US'])[1:-1]
@@ -37,12 +43,14 @@ spy_pct_y = y_base.loc[spy_pct_X.index]
 
 period = 5
 
-datasets = [
-    TimeSeriesDataset(brn_raw_X, brn_raw_y, period=period, name='Brownian Motion'),
-    TimeSeriesDataset(norm_pct_X, norm_pct_y, period=period, name='Normal Sample'),
-    TimeSeriesDataset(spy_raw_X, spy_raw_y, period=period, name='SPY Raw'),
-    TimeSeriesDataset(spy_pct_X, spy_pct_y, period=period, name='SPY %')
-]
+# datasets = [
+#     TimeSeriesDataset(brn_raw_X, brn_raw_y, period=period, name='Brownian Motion'),
+#     TimeSeriesDataset(norm_pct_X, norm_pct_y, period=period, name='Normal Sample'),
+#     TimeSeriesDataset(spy_raw_X, spy_raw_y, period=period, name='SPY Raw'),
+#     TimeSeriesDataset(spy_pct_X, spy_pct_y, period=period, name='SPY %')
+# ]
+
+final_datasets = {key: AssetDataset(symbols, all_data, spy_pct_y) for key, symbols in dataset_symbol_list.items()}
 
 models = [
     dict(estimator=DecisionTreeClassifier(),
@@ -51,9 +59,9 @@ models = [
                          min_samples_split=[2, 5, 10, 50],
                          min_samples_leaf=[1, 5, 10])),
 
-    dict(estimator=SVC()),
-    dict(estimator=KNN()),
-    dict(estimator=LogisticRegression())
+    # dict(estimator=SVC()),
+    # dict(estimator=KNN()),
+    # dict(estimator=LogisticRegression())
 ]
 
 reports = {}
@@ -63,7 +71,7 @@ for model in models:
     estimator_name = model['estimator'].__class__.__name__
     reports[estimator_name] = {}
 
-    for data in datasets:
+    for data in final_datasets:
         print(f'Fitting {estimator_name} on {data.name}{" using GridSearchCV" if "param_grid" in model.keys() else ""}...')
 
         clf = trainer.train(data.X_train, data.y_train)

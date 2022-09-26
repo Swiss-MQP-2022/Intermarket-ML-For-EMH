@@ -104,6 +104,15 @@ def load_data(path=r'./data', set_index_to_date=True, zero_col_thresh=1) -> dict
 
     return data
 
+def get_df_from_symbol(asset_type, symbol, data):
+    """
+    Helper function for quickly getting dfs from symbols
+    :param symbol: EXCHANGE.SYMBOL
+    :param data: data object from load_data()
+    :return: specified data frame
+    """
+    return data[asset_type][symbol]
+
 
 def make_pct_series(data: pd.Series, fill_method=None) -> pd.Series:
     """
