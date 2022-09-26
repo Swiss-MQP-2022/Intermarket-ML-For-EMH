@@ -11,13 +11,11 @@ from dataset import TimeSeriesDataset, AssetDataset
 from trainer import ScikitModelTrainer, DataSplit
 
 dataset_symbol_list = {
-    "simple" : [("stock", "SPY.US")],
+    # "simple": [("stock", "SPY.US")],
     "forex": [("stock", "SPY.US"), ("forex", "USDGBP.FOREX"), ("forex", "USDEUR.FOREX")],
     "bond": [("stock", "SPY.US"), ("bond", "US10Y.GBOND"), ("bond", "US5Y.GBOND")],
     "future": [("stock", "SPY.US"), ("future", "ES.COMM"), ("future", "NK.COMM"), ("future", "RTY.COMM")]
 }
-
-
 
 # Load all the data
 all_data = utils.load_data()
@@ -36,7 +34,6 @@ brn_raw_y = y_base
 norm_pct_X = utils.generate_brownian_motion(len(y_base), brn_features)
 norm_pct_y = y_base
 
-
 # Generate percent change on S&P 500 data
 spy_pct_X = utils.make_pct_data(all_data['stock']['SPY.US'])[1:-1]
 spy_pct_y = y_base.loc[spy_pct_X.index]
@@ -50,7 +47,7 @@ period = 5
 #     TimeSeriesDataset(spy_pct_X, spy_pct_y, period=period, name='SPY %')
 # ]
 
-final_datasets = {key: AssetDataset(symbols, all_data, spy_pct_y) for key, symbols in dataset_symbol_list.items()}
+final_datasets = [AssetDataset(key, symbols, all_data, spy_pct_y) for key, symbols in dataset_symbol_list.items()]
 
 models = [
     dict(estimator=DecisionTreeClassifier(),
@@ -72,7 +69,8 @@ for model in models:
     reports[estimator_name] = {}
 
     for data in final_datasets:
-        print(f'Fitting {estimator_name} on {data.name}{" using GridSearchCV" if "param_grid" in model.keys() else ""}...')
+        print(
+            f'Fitting {estimator_name} on {data.name}{" using GridSearchCV" if "param_grid" in model.keys() else ""}...')
 
         clf = trainer.train(data.X_train, data.y_train)
         predicted_y_train = clf.predict(data.X_train)
@@ -81,5 +79,6 @@ for model in models:
             DataSplit.TRAIN: classification_report(data.y_train, predicted_y_train, zero_division=0, output_dict=True),
             DataSplit.TEST: classification_report(data.y_test, predicted_y_test, zero_division=0, output_dict=True)
         }
+        print(classification_report(data.y_test, predicted_y_test, zero_division=0, output_dict=True))
 
 print('Done!')

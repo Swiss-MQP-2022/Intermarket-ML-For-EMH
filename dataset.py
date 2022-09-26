@@ -20,11 +20,6 @@ class Scaler(Protocol):
     def fit_transform(self, X) -> np.ndarray: ...
 
 
-
-
-
-
-
 class TimeSeriesDataset:
     def __init__(self, X, y,
                  period=100,
@@ -77,8 +72,9 @@ class TimeSeriesDataset:
 
 
 class AssetDataset(TimeSeriesDataset):
-    def __init__(self, symbols, data, y, period=5, scaler=None):
+    def __init__(self, name, symbols, data, y, pct_change=True, period=5, scaler=None):
         """
+        :param name: name of dataset
         :param symbols: list of tuples (asset type, SYMBOL)
         :param data:
         :param y:
@@ -87,17 +83,19 @@ class AssetDataset(TimeSeriesDataset):
         """
         self.symbols = symbols
         self.dfs = [utils.get_df_from_symbol(asset_type, symbol, data) for asset_type, symbol in self.symbols]
-        self.columns = ["close"]
         X = []
 
         for df in self.dfs:
             df = df[:-1]  # trim
-            df_pct = utils.make_pct_data(df)[1:-1]
-            X.append(df_pct)
+            X.append(df)
 
-        X = utils.join_datasets(X)
-        X = X[self.columns]
-        super().__init__(X, y, period=period, scaler=scaler)
+        X= utils.join_datasets(X)
+        if pct_change:
+            X = utils.make_pct_data(X)
+            X = X[1:]
+
+        y = y.loc[X.index.intersection(y.index)]
+        super().__init__(X, y, period=period, scaler=scaler, name=name)
 
 
 class TorchTimeSeriesDataset(Dataset):
