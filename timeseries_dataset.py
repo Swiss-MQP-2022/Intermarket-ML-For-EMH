@@ -1,5 +1,4 @@
 from math import floor
-from typing import Protocol
 
 import numpy as np
 import pandas as pd
@@ -9,11 +8,7 @@ from sklearn.model_selection import train_test_split
 
 from torch.utils.data import Dataset, Subset, DataLoader
 
-
-class Scaler(Protocol):
-    def fit(self, X): ...
-    def transform(self, X) -> np.ndarray: ...
-    def fit_transform(self, X) -> np.ndarray: ...
+from utils import Scaler
 
 
 class TimeSeriesDataset:

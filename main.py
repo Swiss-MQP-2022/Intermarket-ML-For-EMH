@@ -14,7 +14,7 @@ from trainer import ScikitModelTrainer, DataSplit
 all_data = utils.load_data()
 
 # Generate the FULL available y set
-y_base = utils.make_pct_series(all_data['stock']['SPY.US']['close']).shift(-1).apply(np.sign)[:-1]
+y_base = utils.make_percent_series(all_data['stock']['SPY.US']['close']).shift(-1).apply(np.sign)[:-1]
 
 # 5 random data features (chosen arbitrarily)
 brn_features = 5
@@ -32,7 +32,7 @@ spy_raw_X = all_data['stock']['SPY.US'][:-1]
 spy_raw_y = y_base.loc[spy_raw_X.index]
 
 # Generate percent change on S&P 500 data
-spy_pct_X = utils.make_pct_data(all_data['stock']['SPY.US'])[1:-1]
+spy_pct_X = utils.make_percent_data(all_data['stock']['SPY.US'])[1:-1]
 spy_pct_y = y_base.loc[spy_pct_X.index]
 
 period = 5
