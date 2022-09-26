@@ -5,6 +5,7 @@ from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier as KNN
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
+from sklearn.preprocessing import StandardScaler
 
 import utils
 from timeseries_dataset import TimeSeriesDataset
@@ -31,9 +32,17 @@ norm_pct_y = y_base
 spy_raw_X = all_data['stock']['SPY.US'][:-1]
 spy_raw_y = y_base.loc[spy_raw_X.index]
 
+# Generate PCA on raw S&P 500 data
+(spy_raw_pca_X, spy_raw_pca_y), _ = utils.make_pca_data(spy_raw_X, y_base, scaler=StandardScaler(),
+                                                        svd_solver='full', n_components=0.95)
+
 # Generate percent change on S&P 500 data
 spy_pct_X = utils.make_percent_data(all_data['stock']['SPY.US'])[1:-1]
 spy_pct_y = y_base.loc[spy_pct_X.index]
+
+# Generate PCA on percent change S&P 500 data
+(spy_pct_pca_X, spy_pct_pca_y), _ = utils.make_pca_data(spy_pct_X, y_base, scaler=StandardScaler(),
+                                                        svd_solver='full', n_components=0.95)
 
 period = 5
 

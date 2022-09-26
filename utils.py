@@ -217,23 +217,26 @@ def join_datasets(data: list[pd.DataFrame], y: pd.Series = None, flatten_columns
     return joined
 
 
-def make_pca_data(df: pd.DataFrame, target: pd.Index = None, scaler: Scaler = None, **kwargs: dict[str, any]):
+def make_pca_data(df: pd.DataFrame, target: pd.Series = None, scaler: Scaler = None, **kwargs):
     """
     Performs principal component analysis (PCA) on the provided data
     :param df: data to perform PCA on
-    :param target: index of target series/dataframe to filter to
+    :param target: Series to filter index by
     :param scaler: normalization scaler to use before performing PCA
     :param kwargs: keyword arguments to pass to PCA
-    :return: dataframe of principal components, (fitted PCA object, fitted scaler)
+    :return: (dataframe of principal components, filtered target), (fitted PCA object, fitted scaler)
     """
+    index = df.index  # get index before performing PCA
     if target is not None:  # filter df to intersection with target if provided
-        df = df.loc[df.index.intersection(target)]
+        index = index.intersection(target.index)
+        df = df.loc[index]
+        target = target.loc[index]
 
     if scaler is not None:  # normalize df using scaler if provided
         df = scaler.fit_transform(df)
 
     pca = PCA(**kwargs)  # initialize PCA instance
     principal_components = pca.fit_transform(df)  # perform PCA
-    principal_df = pd.DataFrame(data=principal_components, index=df.index)  # convert to dataframe with original index
+    principal_df = pd.DataFrame(data=principal_components, index=index)  # convert to dataframe with original index
 
-    return principal_df, (pca, scaler)
+    return (principal_df, target), (pca, scaler)
