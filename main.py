@@ -47,10 +47,12 @@ spy_pct_y = y_base.loc[spy_pct_X.index]
 period = 5
 
 datasets = [
-    TimeSeriesDataset(brn_raw_X, brn_raw_y, period=period, name='Brownian Motion'),
-    TimeSeriesDataset(norm_pct_X, norm_pct_y, period=period, name='Normal Sample'),
-    TimeSeriesDataset(spy_raw_X, spy_raw_y, period=period, name='SPY Raw'),
-    TimeSeriesDataset(spy_pct_X, spy_pct_y, period=period, name='SPY %')
+    TimeSeriesDataset(brn_raw_X, brn_raw_y, period=period, scaler=StandardScaler(), name='Brownian Motion'),
+    TimeSeriesDataset(norm_pct_X, norm_pct_y, period=period, scaler=StandardScaler(), name='Normal Sample'),
+    TimeSeriesDataset(spy_raw_X, spy_raw_y, period=period, scaler=StandardScaler(), name='SPY Raw'),
+    TimeSeriesDataset(spy_raw_pca_X, spy_raw_pca_y, period=period, name='SPY Raw PCA'),
+    TimeSeriesDataset(spy_pct_X, spy_pct_y, period=period, scaler=StandardScaler(), name='SPY %'),
+    TimeSeriesDataset(spy_pct_pca_X, spy_pct_pca_y, period=period, name='SPY % PCA')
 ]
 
 models = [
