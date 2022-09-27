@@ -36,16 +36,13 @@ norm_pct_X = utils.generate_brownian_motion(len(y_base), brn_features)
 norm_pct_y = y_base
 
 # Load raw S&P 500 data
-spy_raw_X = all_data['stock']['SPY.US'][:-1]
-spy_raw_y = y_base.loc[spy_raw_X.index]
+spy_raw_X, spy_raw_y = utils.align_data(all_data['stock']['SPY.US'], y_base)
 
 # Generate PCA on raw S&P 500 data
 (spy_raw_pca_X, spy_raw_pca_y), _ = utils.make_pca_data(spy_raw_X, y_base, scaler=StandardScaler(),
                                                         svd_solver='full', n_components=0.95)
-
 # Generate percent change on S&P 500 data
-spy_pct_X = utils.make_percent_data(all_data['stock']['SPY.US'])[1:-1]
-spy_pct_y = y_base.loc[spy_pct_X.index]
+spy_pct_X, spy_pct_y = utils.align_data(utils.make_percent_data(all_data['stock']['SPY.US']), y_base)
 
 # Generate PCA on percent change S&P 500 data
 (spy_pct_pca_X, spy_pct_pca_y), _ = utils.make_pca_data(spy_pct_X, y_base, scaler=StandardScaler(),
@@ -53,16 +50,16 @@ spy_pct_y = y_base.loc[spy_pct_X.index]
 
 period = 5
 
-# datasets = [
-#     TimeSeriesDataset(brn_raw_X, brn_raw_y, period=period, scaler=StandardScaler(), name='Brownian Motion'),
-#     TimeSeriesDataset(norm_pct_X, norm_pct_y, period=period, scaler=StandardScaler(), name='Normal Sample'),
-#     TimeSeriesDataset(spy_raw_X, spy_raw_y, period=period, scaler=StandardScaler(), name='SPY Raw'),
-#     TimeSeriesDataset(spy_raw_pca_X, spy_raw_pca_y, period=period, name='SPY Raw PCA'),
-#     TimeSeriesDataset(spy_pct_X, spy_pct_y, period=period, scaler=StandardScaler(), name='SPY %'),
-#     TimeSeriesDataset(spy_pct_pca_X, spy_pct_pca_y, period=period, name='SPY % PCA')
-# ]
+datasets = [
+    TimeSeriesDataset(brn_raw_X, brn_raw_y, period=period, scaler=StandardScaler(), name='Brownian Motion'),
+    TimeSeriesDataset(norm_pct_X, norm_pct_y, period=period, scaler=StandardScaler(), name='Normal Sample'),
+    TimeSeriesDataset(spy_raw_X, spy_raw_y, period=period, scaler=StandardScaler(), name='SPY Raw'),
+    TimeSeriesDataset(spy_raw_pca_X, spy_raw_pca_y, period=period, name='SPY Raw PCA'),
+    TimeSeriesDataset(spy_pct_X, spy_pct_y, period=period, scaler=StandardScaler(), name='SPY %'),
+    TimeSeriesDataset(spy_pct_pca_X, spy_pct_pca_y, period=period, name='SPY % PCA')
+]
 
-final_datasets = [AssetDataset(key, symbols, all_data, spy_pct_y) for key, symbols in dataset_symbol_list.items()]
+# datasets = [AssetDataset(key, symbols, all_data, spy_pct_y) for key, symbols in dataset_symbol_list.items()]
 
 models = [
     dict(estimator=DecisionTreeClassifier(),
@@ -83,7 +80,7 @@ for model in models:
     estimator_name = model['estimator'].__class__.__name__
     reports[estimator_name] = {}
 
-    for data in final_datasets:
+    for data in datasets:
         print(f'Fitting {estimator_name} on {data.name}{" using GridSearchCV" if "param_grid" in model.keys() else ""}...')
 
         clf = trainer.train(data.X_train, data.y_train)

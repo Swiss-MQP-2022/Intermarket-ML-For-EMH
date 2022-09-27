@@ -1,12 +1,12 @@
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, Union
 
 import pandas as pd
 import numpy as np
 from scipy import stats
 
-from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
+
 
 class Scaler(Protocol):
     def fit(self, X): ...
@@ -106,9 +106,11 @@ def load_data(path=r'./data', set_index_to_date=True, zero_col_thresh=1) -> dict
 
     return data
 
-def get_df_from_symbol(asset_type, symbol, data):
+
+def get_df_from_symbol(asset_type: str, symbol: str, data: dict[str, dict[str, pd.DataFrame]]) -> pd.DataFrame:
     """
     Helper function for quickly getting dfs from symbols
+    :param asset_type: asset type
     :param symbol: EXCHANGE.SYMBOL
     :param data: data object from load_data()
     :return: specified data frame
@@ -128,7 +130,9 @@ def make_percent_series(data: pd.Series, fill_method=None) -> pd.Series:
         data = data[data != 0]  # drop zeros
     else:  # fill method provided
         data = data.replace(0, method=fill_method)  # replace zeros using fill method
-    return data.pct_change(fill_method=fill_method)  # compute percent change (fills NaNs if fill_method is provided)
+
+    data = data.pct_change(fill_method=fill_method)  # compute percent change (fills NaNs if fill_method is provided).
+    return data.iloc[1:]  # Remove first value (always NaN after computing percent change)
 
 
 def make_percent_data(df: pd.DataFrame, fill_method=None, zero_col_thresh=1) -> pd.DataFrame:
@@ -148,7 +152,9 @@ def make_percent_data(df: pd.DataFrame, fill_method=None, zero_col_thresh=1) -> 
         df = drop_zero_rows(df)  # drop zeros
     else:  # fill method provided
         df = df.replace(0, method=fill_method)  # replace zeros using fill method
-    return df.pct_change(fill_method=fill_method)  # compute and return percent change (uses fill method if provided)
+
+    df.pct_change(fill_method=fill_method)  # compute and return percent change (uses fill method if provided)
+    return df.iloc[1:]  # Remove first value (always NaN after computing percent change)
 
 
 def make_percent_dict(data: dict[str, dict[str, pd.DataFrame]], fill_method=None, zero_col_thresh=1) -> dict[str, dict[str, pd.DataFrame]]:
@@ -235,11 +241,10 @@ def make_pca_data(df: pd.DataFrame, target: pd.Series = None, scaler: Scaler = N
     :param kwargs: keyword arguments to pass to PCA
     :return: (dataframe of principal components, filtered target), (fitted PCA object, fitted scaler)
     """
-    index = df.index  # get index before performing PCA
     if target is not None:  # filter df to intersection with target if provided
-        index = index.intersection(target.index)
-        df = df.loc[index]
-        target = target.loc[index]
+        df, target = align_data(df, target)
+
+    index = df.index  # get index before performing PCA
 
     if scaler is not None:  # normalize df using scaler if provided
         df = scaler.fit_transform(df)
@@ -249,3 +254,14 @@ def make_pca_data(df: pd.DataFrame, target: pd.Series = None, scaler: Scaler = N
     principal_df = pd.DataFrame(data=principal_components, index=index)  # convert to dataframe with original index
 
     return (principal_df, target), (pca, scaler)
+
+
+def align_data(X: Union[pd.DataFrame, pd.Series], y: Union[pd.DataFrame, pd.Series]) -> (Union[pd.DataFrame, pd.Series], Union[pd.DataFrame, pd.Series]):
+    """
+    Align and filter two sets of data based on their shared indices
+    :param X: first dataset to align
+    :param y: second dataset to align
+    :return: aligned datasets
+    """
+    intersection = X.index.intersection(y.index)
+    return X.loc[intersection], y.loc[intersection]
