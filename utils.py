@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Protocol, Union
+from typing import Protocol, Union, TypeVar, Callable, ParamSpec
 
 import pandas as pd
 import numpy as np
@@ -153,8 +153,32 @@ def make_percent_data(df: pd.DataFrame, fill_method=None, zero_col_thresh=1) -> 
     else:  # fill method provided
         df = df.replace(0, method=fill_method)  # replace zeros using fill method
 
-    df.pct_change(fill_method=fill_method)  # compute and return percent change (uses fill method if provided)
+    df = df.pct_change(fill_method=fill_method)  # compute and return percent change (uses fill method if provided)
     return df.iloc[1:]  # Remove first value (always NaN after computing percent change)
+
+
+T = TypeVar('T')
+V = TypeVar('V')
+P = ParamSpec('P')
+
+
+def map_data_dict(data: dict[str, dict[str, T]], map_func: Callable[[T, P.kwargs], V], **kwargs: P.kwargs) -> dict[str, dict[str, V]]:
+    """
+    Maps a data dictionary based on the provided function
+    :param data: dictionary of data to map
+    :param map_func: mapping function to apply to each dataframe
+    :param kwargs: keyword arguments to pass to the mapping function
+    :return: mapped data dictionary
+    """
+    new_data = {}
+
+    for asset_type in data.keys():  # for each asset type
+        new_data[asset_type] = {}
+        for asset_name in data[asset_type].keys():  # for each asset
+            # apply map_func
+            new_data[asset_type][asset_name] = map_func(data[asset_type][asset_name], **kwargs)
+
+    return new_data
 
 
 def make_percent_dict(data: dict[str, dict[str, pd.DataFrame]], fill_method=None, zero_col_thresh=1) -> dict[str, dict[str, pd.DataFrame]]:
@@ -165,17 +189,9 @@ def make_percent_dict(data: dict[str, dict[str, pd.DataFrame]], fill_method=None
     :param zero_col_thresh: proportion of a column that must be zero to drop it
     :return: percent-change data dictionary
     """
-    pct_data = {}
 
-    for asset_type in data.keys():  # for each asset type
-        pct_data[asset_type] = {}
-        for asset_name in data[asset_type].keys():  # for each asset
-            # compute and save percent-change data
-            pct_data[asset_type][asset_name] = make_percent_data(data[asset_type][asset_name],
-                                                                 fill_method=fill_method,
-                                                                 zero_col_thresh=zero_col_thresh)
-
-    return pct_data
+    return map_data_dict(data, make_percent_data,
+                         fill_method=fill_method, zero_col_thresh=zero_col_thresh)
 
 
 def drop_zero_cols(df: pd.DataFrame, thresh) -> pd.DataFrame:
@@ -197,21 +213,14 @@ def drop_zero_rows(df: pd.DataFrame) -> pd.DataFrame:
     return df[~(df == 0).any(axis=1)]
 
 
-def remove_outliers_dict(data: dict[str, dict[str, pd.DataFrame]]) -> dict[str, dict[str, pd.DataFrame]]:
+def remove_outliers_dict(data: dict[str, dict[str, pd.DataFrame]], z_thresh=3) -> dict[str, dict[str, pd.DataFrame]]:
     """
     Remove outliers from a dictionary of data
     :param data: dictionary of data to filter
+    :param z_thresh: z-score threshold to consider outliers beyond
     :return: dictionary of data with outliers removed
     """
-    new_data = {}
-
-    for asset_type in data.keys():  # for each asset type
-        new_data[asset_type] = {}
-        for asset_name in data[asset_type].keys():  # for each asset of the given type
-            # save data with outliers removed
-            new_data[asset_type][asset_name] = remove_outliers(data[asset_type][asset_name])
-
-    return new_data
+    return map_data_dict(data, remove_outliers, z_thresh=z_thresh)
 
 
 def join_datasets(data: list[pd.DataFrame], y: pd.Series = None, flatten_columns=True):
