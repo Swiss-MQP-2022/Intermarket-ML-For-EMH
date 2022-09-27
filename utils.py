@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Protocol, Union, TypeVar, Callable, ParamSpec
+from typing import Protocol, Union, TypeVar, Callable
 
 import pandas as pd
 import numpy as np
@@ -159,10 +159,9 @@ def make_percent_data(df: pd.DataFrame, fill_method=None, zero_col_thresh=1) -> 
 
 T = TypeVar('T')
 V = TypeVar('V')
-P = ParamSpec('P')
 
 
-def map_data_dict(data: dict[str, dict[str, T]], map_func: Callable[[T, P.kwargs], V], **kwargs: P.kwargs) -> dict[str, dict[str, V]]:
+def map_data_dict(data: dict[str, dict[str, T]], map_func: Callable[[T, any], V], **kwargs) -> dict[str, dict[str, V]]:
     """
     Maps a data dictionary based on the provided function
     :param data: dictionary of data to map
