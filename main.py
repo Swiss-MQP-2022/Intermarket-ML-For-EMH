@@ -53,13 +53,13 @@ period = 5
 
 datasets = [
     TimeSeriesDataset(brn_raw_X, y_base, period=period, scaler=StandardScaler(), name='Brownian Motion'),
+    TimeSeriesDataset(brn_raw_X, y_base, period=period, scaler=deepcopy(pca_pipeline), name='Brownian Motion PCA'),
     TimeSeriesDataset(norm_pct_X, y_base, period=period, scaler=StandardScaler(), name='Normal Sample'),
+    TimeSeriesDataset(norm_pct_X, y_base, period=period, scaler=deepcopy(pca_pipeline), name='Normal Sample PCA'),
     TimeSeriesDataset(spy_raw_X, spy_raw_y, period=period, scaler=StandardScaler(), name='SPY Raw'),
     TimeSeriesDataset(spy_raw_X, spy_raw_y, period=period, scaler=deepcopy(pca_pipeline), name='SPY Raw PCA'),
     TimeSeriesDataset(spy_pct_X, spy_pct_y, period=period, scaler=StandardScaler(), name='SPY %'),
     TimeSeriesDataset(spy_pct_X, spy_pct_y, period=period, scaler=deepcopy(pca_pipeline), name='SPY % PCA'),
-    TimeSeriesDataset(brn_raw_X, y_base, period=period, scaler=deepcopy(pca_pipeline), name='Brownian Motion PCA'),
-    TimeSeriesDataset(norm_pct_X, y_base, period=period, scaler=deepcopy(pca_pipeline), name='Normal Sample PCA')
 ]
 
 # datasets = [MultiAssetDataset(key, symbols, all_data, spy_pct_y) for key, symbols in dataset_symbol_list.items()]
