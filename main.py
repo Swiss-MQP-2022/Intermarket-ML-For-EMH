@@ -1,6 +1,7 @@
 from copy import deepcopy
 
 import numpy as np
+import pandas as pd
 
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
@@ -55,7 +56,9 @@ datasets = [
     TimeSeriesDataset(spy_raw_X, spy_raw_y, period=period, scaler=StandardScaler(), name='SPY Raw'),
     TimeSeriesDataset(spy_raw_X, spy_raw_y, period=period, scaler=deepcopy(pca_pipeline), name='SPY Raw PCA'),
     TimeSeriesDataset(spy_pct_X, spy_pct_y, period=period, scaler=StandardScaler(), name='SPY %'),
-    TimeSeriesDataset(spy_pct_X, spy_pct_y, period=period, scaler=deepcopy(pca_pipeline), name='SPY % PCA')
+    TimeSeriesDataset(spy_pct_X, spy_pct_y, period=period, scaler=deepcopy(pca_pipeline), name='SPY % PCA'),
+    TimeSeriesDataset(brn_raw_X, y_base, period=period, scaler=deepcopy(pca_pipeline), name='Brownian Motion PCA'),
+    TimeSeriesDataset(norm_pct_X, y_base, period=period, scaler=deepcopy(pca_pipeline), name='Normal Sample PCA')
 ]
 
 # datasets = [MultiAssetDataset(key, symbols, all_data, spy_pct_y) for key, symbols in dataset_symbol_list.items()]
@@ -86,10 +89,17 @@ for model in models:
         predicted_y_train = clf.predict(data.X_train)
         predicted_y_test = clf.predict(data.X_test)
         reports[estimator_name][data.name] = {
-            DataSplit.TRAIN: classification_report(data.y_train, predicted_y_train, zero_division=0, output_dict=True),
-            DataSplit.TEST: classification_report(data.y_test, predicted_y_test, zero_division=0, output_dict=True)
+            DataSplit.TRAIN: classification_report(data.y_train, predicted_y_train, zero_division=0, output_dict=False),
+            DataSplit.TEST: classification_report(data.y_test, predicted_y_test, zero_division=0, output_dict=False)
         }
 
         print(classification_report(data.y_test, predicted_y_test, zero_division=0))
 
 print('Done!')
+
+for model in reports.keys():
+    for data in reports[model].keys():
+        print('\n')
+        for split in [DataSplit.TRAIN, DataSplit.TEST]:
+            print(f'{model}: {data}, {split}')
+            print(reports[model][data][split])
