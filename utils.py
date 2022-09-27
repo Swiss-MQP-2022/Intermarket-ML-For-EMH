@@ -1,16 +1,18 @@
 from pathlib import Path
+from typing import Protocol
 
 import pandas as pd
 import numpy as np
 from scipy import stats
-# from sklearn.metrics import classification_report
 
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
 
-# def forecast_classification_report(pred, truth):
-#     pred_direction = np.sign(pred)
-#     truth_direction = np.sign(truth)
-#
-#     return classification_report(pred_direction, truth_direction)
+class Scaler(Protocol):
+    def fit(self, X): ...
+    def transform(self, X) -> np.ndarray: ...
+    def fit_transform(self, X) -> np.ndarray: ...
+
 
 def pct_to_cumulative(data, initial=None):
     """
@@ -114,7 +116,7 @@ def get_df_from_symbol(asset_type, symbol, data):
     return data[asset_type][symbol]
 
 
-def make_pct_series(data: pd.Series, fill_method=None) -> pd.Series:
+def make_percent_series(data: pd.Series, fill_method=None) -> pd.Series:
     """
     Converts a series to percent-change
     :param data: series to convert
@@ -129,7 +131,7 @@ def make_pct_series(data: pd.Series, fill_method=None) -> pd.Series:
     return data.pct_change(fill_method=fill_method)  # compute percent change (fills NaNs if fill_method is provided)
 
 
-def make_pct_data(df: pd.DataFrame, fill_method=None, zero_col_thresh=1) -> pd.DataFrame:
+def make_percent_data(df: pd.DataFrame, fill_method=None, zero_col_thresh=1) -> pd.DataFrame:
     """
     Convert a dataframe to percent-change
     :param df: dataframe to convert
@@ -149,7 +151,7 @@ def make_pct_data(df: pd.DataFrame, fill_method=None, zero_col_thresh=1) -> pd.D
     return df.pct_change(fill_method=fill_method)  # compute and return percent change (uses fill method if provided)
 
 
-def make_pct_data_dict(data: dict[str, dict[str, pd.DataFrame]], fill_method=None, zero_col_thresh=1) -> dict[str, dict[str, pd.DataFrame]]:
+def make_percent_dict(data: dict[str, dict[str, pd.DataFrame]], fill_method=None, zero_col_thresh=1) -> dict[str, dict[str, pd.DataFrame]]:
     """
     Convert a dictionary of data to percent-change
     :param data: dictionary of data to convert
@@ -163,9 +165,9 @@ def make_pct_data_dict(data: dict[str, dict[str, pd.DataFrame]], fill_method=Non
         pct_data[asset_type] = {}
         for asset_name in data[asset_type].keys():  # for each asset
             # compute and save percent-change data
-            pct_data[asset_type][asset_name] = make_pct_data(data[asset_type][asset_name],
-                                                             fill_method=fill_method,
-                                                             zero_col_thresh=zero_col_thresh)
+            pct_data[asset_type][asset_name] = make_percent_data(data[asset_type][asset_name],
+                                                                 fill_method=fill_method,
+                                                                 zero_col_thresh=zero_col_thresh)
 
     return pct_data
 
@@ -222,3 +224,28 @@ def join_datasets(data: list[pd.DataFrame], y: pd.Series = None, flatten_columns
         return joined, y.loc[joined.index]
 
     return joined
+
+
+def make_pca_data(df: pd.DataFrame, target: pd.Series = None, scaler: Scaler = None, **kwargs):
+    """
+    Performs principal component analysis (PCA) on the provided data
+    :param df: data to perform PCA on
+    :param target: Series to filter index by
+    :param scaler: normalization scaler to use before performing PCA
+    :param kwargs: keyword arguments to pass to PCA
+    :return: (dataframe of principal components, filtered target), (fitted PCA object, fitted scaler)
+    """
+    index = df.index  # get index before performing PCA
+    if target is not None:  # filter df to intersection with target if provided
+        index = index.intersection(target.index)
+        df = df.loc[index]
+        target = target.loc[index]
+
+    if scaler is not None:  # normalize df using scaler if provided
+        df = scaler.fit_transform(df)
+
+    pca = PCA(**kwargs)  # initialize PCA instance
+    principal_components = pca.fit_transform(df)  # perform PCA
+    principal_df = pd.DataFrame(data=principal_components, index=index)  # convert to dataframe with original index
+
+    return (principal_df, target), (pca, scaler)

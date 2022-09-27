@@ -5,6 +5,7 @@ from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier as KNN
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
+from sklearn.preprocessing import StandardScaler
 
 import utils
 from dataset import TimeSeriesDataset, AssetDataset
@@ -21,7 +22,7 @@ dataset_symbol_list = {
 all_data = utils.load_data()
 
 # Generate the FULL available y set
-y_base = utils.make_pct_series(all_data['stock']['SPY.US']['close']).shift(-1).apply(np.sign)[:-1]
+y_base = utils.make_percent_series(all_data['stock']['SPY.US']['close']).shift(-1).apply(np.sign)[:-1]
 
 # 5 random data features (chosen arbitrarily)
 brn_features = 5
@@ -34,17 +35,31 @@ brn_raw_y = y_base
 norm_pct_X = utils.generate_brownian_motion(len(y_base), brn_features)
 norm_pct_y = y_base
 
+# Load raw S&P 500 data
+spy_raw_X = all_data['stock']['SPY.US'][:-1]
+spy_raw_y = y_base.loc[spy_raw_X.index]
+
+# Generate PCA on raw S&P 500 data
+(spy_raw_pca_X, spy_raw_pca_y), _ = utils.make_pca_data(spy_raw_X, y_base, scaler=StandardScaler(),
+                                                        svd_solver='full', n_components=0.95)
+
 # Generate percent change on S&P 500 data
-spy_pct_X = utils.make_pct_data(all_data['stock']['SPY.US'])[1:-1]
+spy_pct_X = utils.make_percent_data(all_data['stock']['SPY.US'])[1:-1]
 spy_pct_y = y_base.loc[spy_pct_X.index]
+
+# Generate PCA on percent change S&P 500 data
+(spy_pct_pca_X, spy_pct_pca_y), _ = utils.make_pca_data(spy_pct_X, y_base, scaler=StandardScaler(),
+                                                        svd_solver='full', n_components=0.95)
 
 period = 5
 
 # datasets = [
-#     TimeSeriesDataset(brn_raw_X, brn_raw_y, period=period, name='Brownian Motion'),
-#     TimeSeriesDataset(norm_pct_X, norm_pct_y, period=period, name='Normal Sample'),
-#     TimeSeriesDataset(spy_raw_X, spy_raw_y, period=period, name='SPY Raw'),
-#     TimeSeriesDataset(spy_pct_X, spy_pct_y, period=period, name='SPY %')
+#     TimeSeriesDataset(brn_raw_X, brn_raw_y, period=period, scaler=StandardScaler(), name='Brownian Motion'),
+#     TimeSeriesDataset(norm_pct_X, norm_pct_y, period=period, scaler=StandardScaler(), name='Normal Sample'),
+#     TimeSeriesDataset(spy_raw_X, spy_raw_y, period=period, scaler=StandardScaler(), name='SPY Raw'),
+#     TimeSeriesDataset(spy_raw_pca_X, spy_raw_pca_y, period=period, name='SPY Raw PCA'),
+#     TimeSeriesDataset(spy_pct_X, spy_pct_y, period=period, scaler=StandardScaler(), name='SPY %'),
+#     TimeSeriesDataset(spy_pct_pca_X, spy_pct_pca_y, period=period, name='SPY % PCA')
 # ]
 
 final_datasets = [AssetDataset(key, symbols, all_data, spy_pct_y) for key, symbols in dataset_symbol_list.items()]
@@ -69,8 +84,7 @@ for model in models:
     reports[estimator_name] = {}
 
     for data in final_datasets:
-        print(
-            f'Fitting {estimator_name} on {data.name}{" using GridSearchCV" if "param_grid" in model.keys() else ""}...')
+        print(f'Fitting {estimator_name} on {data.name}{" using GridSearchCV" if "param_grid" in model.keys() else ""}...')
 
         clf = trainer.train(data.X_train, data.y_train)
         predicted_y_train = clf.predict(data.X_train)
@@ -79,6 +93,7 @@ for model in models:
             DataSplit.TRAIN: classification_report(data.y_train, predicted_y_train, zero_division=0, output_dict=True),
             DataSplit.TEST: classification_report(data.y_test, predicted_y_test, zero_division=0, output_dict=True)
         }
-        print(classification_report(data.y_test, predicted_y_test, zero_division=0, output_dict=True))
+
+        print(classification_report(data.y_test, predicted_y_test, zero_division=0))
 
 print('Done!')
