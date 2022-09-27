@@ -20,6 +20,7 @@ class TimeSeriesDataset:
                  flatten=True,
                  name=None):
         """
+        Dataset class for time series data
         :param X: input data
         :param y: target data
         :param period: period of analysis
@@ -40,11 +41,10 @@ class TimeSeriesDataset:
         train_end = test_start = floor(len(X) * (1 - test_size))
         features = X.shape[1]  # get the number of features
 
-        # Using a scaler is optional
-        if self.scaler is not None:
+        if self.scaler is not None:  # scaler is provided
             self.scaler.fit(X[:train_end])  # fit the scaler to the training data
             X = self.scaler.transform(X)  # scale the data
-        elif isinstance(X, (pd.DataFrame, pd.Series)):
+        elif isinstance(X, (pd.DataFrame, pd.Series)):  # no scaler is provided. Convert to numpy if DataFrame or Series
             X = X.to_numpy()
 
         # https://stackoverflow.com/questions/43185589/sliding-windows-from-2d-array-that-slides-along-axis-0-or-rows-to-give-a-3d-arra
@@ -64,21 +64,20 @@ class TimeSeriesDataset:
 
 
 class MultiAssetDataset(TimeSeriesDataset):
-    def __init__(self, name, symbols, data, y, period=5, scaler=None):
+    def __init__(self, symbols, data, y, **kwargs):
         """
-        :param name: name of dataset
+        Dataset class for time series datasets with multiple assets
         :param symbols: list of tuples (asset type, SYMBOL)
-        :param data:
-        :param y:
-        :param period:
-        :param scaler:
+        :param data: dictionary of data to pull data from based on symbols
+        :param y: target data
+        :param kwargs: arbitrary keyword arguments to pass to TimeSeriesDataset
         """
         self.symbols = symbols
         self.dfs = [utils.get_df_from_symbol(asset_type, symbol, data) for asset_type, symbol in self.symbols]
 
         X, y = utils.align_data(utils.join_datasets(self.dfs), y)
 
-        super().__init__(X, y, period=period, scaler=scaler, name=name)
+        super().__init__(X, y, **kwargs)
 
 
 class TorchTimeSeriesDataset(Dataset):

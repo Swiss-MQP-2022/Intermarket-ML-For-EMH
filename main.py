@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import numpy as np
 
 from sklearn.tree import DecisionTreeClassifier
@@ -6,6 +8,8 @@ from sklearn.neighbors import KNeighborsClassifier as KNN
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
 from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.pipeline import make_pipeline
 
 import utils
 from dataset import TimeSeriesDataset, MultiAssetDataset
@@ -24,39 +28,34 @@ all_data = utils.load_data()
 # Generate the FULL available y set
 y_base = utils.make_percent_series(all_data['stock']['SPY.US']['close']).shift(-1).apply(np.sign)[:-1]
 
+# Scaling pipeline for PCA. If used with MultiAssetDataset, applies *after* join
+pca_pipeline = make_pipeline(StandardScaler(),
+                             PCA(svd_solver='full', n_components=0.95))
+
 # 5 random data features (chosen arbitrarily)
 brn_features = 5
 
 # Generate brownian motion
 brn_raw_X = utils.generate_brownian_motion(len(y_base), brn_features, cumulative=True)
-brn_raw_y = y_base
 
 # Generate normal distribution sample
 norm_pct_X = utils.generate_brownian_motion(len(y_base), brn_features)
-norm_pct_y = y_base
 
 # Load raw S&P 500 data
 spy_raw_X, spy_raw_y = utils.align_data(all_data['stock']['SPY.US'], y_base)
 
-# Generate PCA on raw S&P 500 data
-(spy_raw_pca_X, spy_raw_pca_y), _ = utils.make_pca_data(spy_raw_X, y_base, scaler=StandardScaler(),
-                                                        svd_solver='full', n_components=0.95)
 # Generate percent change on S&P 500 data
 spy_pct_X, spy_pct_y = utils.align_data(utils.make_percent_data(all_data['stock']['SPY.US']), y_base)
-
-# Generate PCA on percent change S&P 500 data
-(spy_pct_pca_X, spy_pct_pca_y), _ = utils.make_pca_data(spy_pct_X, y_base, scaler=StandardScaler(),
-                                                        svd_solver='full', n_components=0.95)
 
 period = 5
 
 datasets = [
-    TimeSeriesDataset(brn_raw_X, brn_raw_y, period=period, scaler=StandardScaler(), name='Brownian Motion'),
-    TimeSeriesDataset(norm_pct_X, norm_pct_y, period=period, scaler=StandardScaler(), name='Normal Sample'),
+    TimeSeriesDataset(brn_raw_X, y_base, period=period, scaler=StandardScaler(), name='Brownian Motion'),
+    TimeSeriesDataset(norm_pct_X, y_base, period=period, scaler=StandardScaler(), name='Normal Sample'),
     TimeSeriesDataset(spy_raw_X, spy_raw_y, period=period, scaler=StandardScaler(), name='SPY Raw'),
-    TimeSeriesDataset(spy_raw_pca_X, spy_raw_pca_y, period=period, name='SPY Raw PCA'),
+    TimeSeriesDataset(spy_raw_X, spy_raw_y, period=period, scaler=deepcopy(pca_pipeline), name='SPY Raw PCA'),
     TimeSeriesDataset(spy_pct_X, spy_pct_y, period=period, scaler=StandardScaler(), name='SPY %'),
-    TimeSeriesDataset(spy_pct_pca_X, spy_pct_pca_y, period=period, name='SPY % PCA')
+    TimeSeriesDataset(spy_pct_X, spy_pct_y, period=period, scaler=deepcopy(pca_pipeline), name='SPY % PCA')
 ]
 
 # datasets = [MultiAssetDataset(key, symbols, all_data, spy_pct_y) for key, symbols in dataset_symbol_list.items()]
