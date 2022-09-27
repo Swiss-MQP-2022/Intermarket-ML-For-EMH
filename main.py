@@ -8,7 +8,7 @@ from sklearn.metrics import classification_report
 from sklearn.preprocessing import StandardScaler
 
 import utils
-from dataset import TimeSeriesDataset, AssetDataset
+from dataset import TimeSeriesDataset, MultiAssetDataset
 from trainer import ScikitModelTrainer, DataSplit
 
 dataset_symbol_list = {
@@ -59,7 +59,7 @@ datasets = [
     TimeSeriesDataset(spy_pct_pca_X, spy_pct_pca_y, period=period, name='SPY % PCA')
 ]
 
-# datasets = [AssetDataset(key, symbols, all_data, spy_pct_y) for key, symbols in dataset_symbol_list.items()]
+# datasets = [MultiAssetDataset(key, symbols, all_data, spy_pct_y) for key, symbols in dataset_symbol_list.items()]
 
 models = [
     dict(estimator=DecisionTreeClassifier(),

@@ -63,7 +63,7 @@ class TimeSeriesDataset:
         self.y_test = self.y[test_start:]
 
 
-class AssetDataset(TimeSeriesDataset):
+class MultiAssetDataset(TimeSeriesDataset):
     def __init__(self, name, symbols, data, y, period=5, scaler=None):
         """
         :param name: name of dataset
