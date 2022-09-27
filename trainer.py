@@ -1,15 +1,9 @@
 from typing import Union, Protocol
-
-from tqdm import tqdm
 from enum import Enum
+
 import numpy as np
 
-import torch
-from torch import nn
-from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.model_selection import TimeSeriesSplit, GridSearchCV, BaseCrossValidator
-
-from dataset import TorchTimeSeriesDataLoader
 
 
 class Estimator(Protocol):
