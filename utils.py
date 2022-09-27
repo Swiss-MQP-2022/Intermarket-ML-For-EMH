@@ -12,6 +12,7 @@ class Scaler(Protocol):
     def fit(self, X): ...
     def transform(self, X) -> np.ndarray: ...
     def fit_transform(self, X) -> np.ndarray: ...
+    def inverse_transform(self, X) -> np.ndarray: ...
 
 
 def pct_to_cumulative(data, initial=None):
@@ -161,7 +162,9 @@ T = TypeVar('T')
 V = TypeVar('V')
 
 
-def map_data_dict(data: dict[str, dict[str, T]], map_func: Callable[[T, any], V], **kwargs) -> dict[str, dict[str, V]]:
+def map_data_dict(data: dict[str, dict[str, T]],
+                  map_func: Callable[[T, any], V],
+                  **kwargs) -> dict[str, dict[str, V]]:
     """
     Maps a data dictionary based on the provided function
     :param data: dictionary of data to map

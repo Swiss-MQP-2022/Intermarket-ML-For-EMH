@@ -17,10 +17,11 @@ class TimeSeriesDataset:
                  period=100,
                  test_size=0.2,
                  scaler: Scaler = None,
+                 fit=True,
                  flatten=True,
                  name=None):
         """
-        Dataset class for time series data
+        Dataset class for time series data (note: assumes data is already aligned)
         :param X: input data
         :param y: target data
         :param period: period of analysis
@@ -31,7 +32,7 @@ class TimeSeriesDataset:
         """
         self.name = name  # set the dataset name
         # set the data index
-        if isinstance(y, pd.Series):
+        if isinstance(y, (pd.DataFrame, pd.Series)):
             self.index = y.index  # This may be useful for aligning time series plots
 
         self.scaler = scaler  # set the scaler for the dataset
@@ -42,7 +43,8 @@ class TimeSeriesDataset:
         features = X.shape[1]  # get the number of features
 
         if self.scaler is not None:  # scaler is provided
-            self.scaler.fit(X[:train_end])  # fit the scaler to the training data
+            if fit:
+                self.scaler.fit(X[:train_end])  # fit the scaler to the training data
             X = self.scaler.transform(X)  # scale the data
         elif isinstance(X, (pd.DataFrame, pd.Series)):  # no scaler is provided. Convert to numpy if DataFrame or Series
             X = X.to_numpy()

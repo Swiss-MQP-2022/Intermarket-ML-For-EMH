@@ -27,7 +27,8 @@ dataset_symbol_list = {
 all_data = utils.load_data()
 
 # Generate the FULL available y set
-y_base = utils.make_percent_series(all_data['stock']['SPY.US']['close']).shift(-1).apply(np.sign)[:-1]
+y_base = utils.make_percent_series(all_data['stock']['SPY.US']['close'])
+y_base = y_base.apply(np.sign).shift(-1).iloc[:-1]
 
 # Scaling pipeline for PCA. If used with MultiAssetDataset, applies *after* join
 pca_pipeline = make_pipeline(StandardScaler(),
