@@ -2,6 +2,9 @@ from optparse import OptionParser
 import multiprocessing as mp
 
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.svm import SVC
+from sklearn.neighbors import KNeighborsClassifier as KNN
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
 
 from dataset import build_datasets
@@ -45,10 +48,9 @@ models = [
                          max_depth=[5, 10, 25, None],
                          min_samples_split=[2, 5, 10, 50],
                          min_samples_leaf=[1, 5, 10])),
-
-    # dict(estimator=SVC()),
-    # dict(estimator=KNN()),
-    # dict(estimator=LogisticRegression())
+    dict(estimator=SVC()),
+    dict(estimator=KNN()),
+    dict(estimator=LogisticRegression(max_iter=1000))
 ]
 
 pr = []
