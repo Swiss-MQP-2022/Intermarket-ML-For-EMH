@@ -11,10 +11,12 @@ from sklearn.metrics import classification_report
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.pipeline import make_pipeline
+from copy import deepcopy
 
 import utils
 from dataset import TimeSeriesDataset, MultiAssetDataset
 from trainer import ScikitModelTrainer, DataSplit
+from classification_graphs import graph_classification_reports
 
 dataset_symbol_list = {
     # "simple": [("stock", "SPY.US")],
@@ -70,9 +72,9 @@ models = [
                          min_samples_split=[2, 5, 10, 50],
                          min_samples_leaf=[1, 5, 10])),
 
-    # dict(estimator=SVC()),
-    # dict(estimator=KNN()),
-    # dict(estimator=LogisticRegression())
+    dict(estimator=SVC(probability=True)),
+    dict(estimator=KNN()),
+    dict(estimator=LogisticRegression())
 ]
 
 reports = {}
@@ -81,11 +83,12 @@ for model in models:
     trainer = ScikitModelTrainer(**model)
     estimator_name = model['estimator'].__class__.__name__
     reports[estimator_name] = {}
+    clf_list = []
 
     for data in datasets:
         print(f'Fitting {estimator_name} on {data.name}{" using GridSearchCV" if "param_grid" in model.keys() else ""}...')
-
         clf = trainer.train(data.X_train, data.y_train)
+        clf_list.append(deepcopy(clf))
         predicted_y_train = clf.predict(data.X_train)
         predicted_y_test = clf.predict(data.X_test)
         reports[estimator_name][data.name] = {
@@ -93,7 +96,9 @@ for model in models:
             DataSplit.TEST: classification_report(data.y_test, predicted_y_test, zero_division=0, output_dict=False)
         }
 
-        print(classification_report(data.y_test, predicted_y_test, zero_division=0))
+        #print(classification_report(data.y_test, predicted_y_test, zero_division=0))
+    graph_classification_reports(estimator_name, clf_list, datasets)
+
 
 print('Done!')
 
@@ -103,3 +108,5 @@ for model in reports.keys():
         for split in [DataSplit.TRAIN, DataSplit.TEST]:
             print(f'{model}: {data}, {split}')
             print(reports[model][data][split])
+
+
