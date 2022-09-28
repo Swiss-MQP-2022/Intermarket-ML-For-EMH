@@ -8,7 +8,7 @@ from dataset import build_datasets
 from trainer import ScikitModelTrainer, DataSplit
 
 
-def fit_single_model(model_trainer, dataset,):
+def fit_single_model(model_trainer, dataset):
     model_name = model_trainer.estimator.__class__.__name__
     print(f'Fitting {model_name} on {dataset.name}{" using GridSearchCV" if model_trainer.use_grid_search else ""}...')
 
@@ -25,55 +25,54 @@ def fit_single_model(model_trainer, dataset,):
     }
 
 
-if __name__ == '__main__':
-    parser = OptionParser()
-    parser.add_option('-m', '--multiprocess',
-                      action='store_true',
-                      default=False,
-                      dest='multiprocess',
-                      help='Use multiprocessing when fitting models')
-    options, _ = parser.parse_args()
+parser = OptionParser()
+parser.add_option('-m', '--multiprocess',
+                  action='store_true',
+                  default=False,
+                  dest='multiprocess',
+                  help='Use multiprocessing when fitting models')
+options, _ = parser.parse_args()
 
-    datasets = build_datasets(period=5,
-                              brn_features=5,
-                              zero_col_thresh=0.25,
-                              replace_zero=-1,
-                              svd_solver='full', n_components=0.95)
+datasets = build_datasets(period=5,
+                          brn_features=5,
+                          zero_col_thresh=0.25,
+                          replace_zero=-1,
+                          svd_solver='full', n_components=0.95)
 
-    models = [
-        dict(estimator=DecisionTreeClassifier(),
-             param_grid=dict(splitter=['best', 'random'],
-                             max_depth=[5, 10, 25, None],
-                             min_samples_split=[2, 5, 10, 50],
-                             min_samples_leaf=[1, 5, 10])),
+models = [
+    dict(estimator=DecisionTreeClassifier(),
+         param_grid=dict(splitter=['best', 'random'],
+                         max_depth=[5, 10, 25, None],
+                         min_samples_split=[2, 5, 10, 50],
+                         min_samples_leaf=[1, 5, 10])),
 
-        # dict(estimator=SVC()),
-        # dict(estimator=KNN()),
-        # dict(estimator=LogisticRegression())
-    ]
+    # dict(estimator=SVC()),
+    # dict(estimator=KNN()),
+    # dict(estimator=LogisticRegression())
+]
 
-    pr = []
-    reports = {}
+pr = []
+reports = {}
 
-    for model in models:
-        trainer = ScikitModelTrainer(**model)
-        estimator_name = model['estimator'].__class__.__name__
-        reports[estimator_name] = {}
+for model in models:
+    trainer = ScikitModelTrainer(**model)
+    estimator_name = model['estimator'].__class__.__name__
+    reports[estimator_name] = {}
 
-        for data in datasets:
-            if options.multiprocess:
-                pr.append(mp.Process(target=fit_single_model, args=(trainer, data)))
-            else:
-                fit_single_model(trainer, data)
+    for data in datasets:
+        if options.multiprocess:
+            pr.append(mp.Process(target=fit_single_model, args=(trainer, data)))
+        else:
+            fit_single_model(trainer, data)
 
-    [p.start() for p in pr]
-    [p.join() for p in pr]
+[p.start() for p in pr]
+[p.join() for p in pr]
 
-    print('Done!')
+print('Done!')
 
-    for model in reports.keys():
-        for data in reports[model].keys():
-            print('\n')
-            for split in [DataSplit.TRAIN, DataSplit.TEST]:
-                print(f'{model}: {data}, {split}')
-                print(reports[model][data][split])
+for model in reports.keys():
+    for data in reports[model].keys():
+        print('\n')
+        for split in [DataSplit.TRAIN, DataSplit.TEST]:
+            print(f'{model}: {data}, {split}')
+            print(reports[model][data][split])
