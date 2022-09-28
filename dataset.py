@@ -1,5 +1,4 @@
 from math import floor
-from typing import Protocol
 
 import numpy as np
 import pandas as pd
@@ -9,11 +8,8 @@ from sklearn.model_selection import train_test_split
 
 from torch.utils.data import Dataset, Subset, DataLoader
 
-
-class Scaler(Protocol):
-    def fit(self, X): ...
-    def transform(self, X) -> np.ndarray: ...
-    def fit_transform(self, X) -> np.ndarray: ...
+import utils
+from utils import Scaler
 
 
 class TimeSeriesDataset:
@@ -21,9 +17,11 @@ class TimeSeriesDataset:
                  period=100,
                  test_size=0.2,
                  scaler: Scaler = None,
+                 fit=True,
                  flatten=True,
                  name=None):
         """
+        Dataset class for time series data (note: assumes data is already aligned)
         :param X: input data
         :param y: target data
         :param period: period of analysis
@@ -34,7 +32,7 @@ class TimeSeriesDataset:
         """
         self.name = name  # set the dataset name
         # set the data index
-        if isinstance(y, pd.Series):
+        if isinstance(y, (pd.DataFrame, pd.Series)):
             self.index = y.index  # This may be useful for aligning time series plots
 
         self.scaler = scaler  # set the scaler for the dataset
@@ -44,11 +42,11 @@ class TimeSeriesDataset:
         train_end = test_start = floor(len(X) * (1 - test_size))
         features = X.shape[1]  # get the number of features
 
-        # Using a scaler is optional
-        if self.scaler is not None:
-            self.scaler.fit(X[:train_end])  # fit the scaler to the training data
+        if self.scaler is not None:  # scaler is provided
+            if fit:
+                self.scaler.fit(X[:train_end])  # fit the scaler to the training data
             X = self.scaler.transform(X)  # scale the data
-        elif isinstance(X, (pd.DataFrame, pd.Series)):
+        elif isinstance(X, (pd.DataFrame, pd.Series)):  # no scaler is provided. Convert to numpy if DataFrame or Series
             X = X.to_numpy()
 
         # https://stackoverflow.com/questions/43185589/sliding-windows-from-2d-array-that-slides-along-axis-0-or-rows-to-give-a-3d-arra
@@ -65,6 +63,23 @@ class TimeSeriesDataset:
         self.y_train = self.y[:train_end]
         self.X_test = self.X[test_start:]
         self.y_test = self.y[test_start:]
+
+
+class MultiAssetDataset(TimeSeriesDataset):
+    def __init__(self, symbols, data, y, **kwargs):
+        """
+        Dataset class for time series datasets with multiple assets
+        :param symbols: list of tuples (asset type, SYMBOL)
+        :param data: dictionary of data to pull data from based on symbols
+        :param y: target data
+        :param kwargs: arbitrary keyword arguments to pass to TimeSeriesDataset
+        """
+        self.symbols = symbols
+        self.dfs = [utils.get_df_from_symbol(asset_type, symbol, data) for asset_type, symbol in self.symbols]
+
+        X, y = utils.align_data(utils.join_datasets(self.dfs), y)
+
+        super().__init__(X, y, **kwargs)
 
 
 class TorchTimeSeriesDataset(Dataset):
