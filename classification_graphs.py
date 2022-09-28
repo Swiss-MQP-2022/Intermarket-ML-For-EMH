@@ -1,4 +1,5 @@
 from itertools import cycle
+from pathlib import Path
 
 import numpy as np
 import matplotlib
@@ -38,5 +39,9 @@ def graph_classification_reports(estimator_name, clf_list, datasets):
     plt.ylabel("True Positive Rate")
     plt.title(fr"ROC of Each Dataset for {estimator_name}")
     plt.legend(loc="lower right")
-    plt.show()
+    plot_dir = r'./classification_plots'
+    Path(plot_dir).mkdir(parents=True, exist_ok=True)  # create plots directory if doesn't exist
+    #plt.show()
+    plt.savefig(rf'{plot_dir}/{estimator_name}.png')
+
 

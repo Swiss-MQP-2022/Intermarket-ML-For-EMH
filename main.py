@@ -78,13 +78,12 @@ models = [
 ]
 
 reports = {}
-roc_data = [[0 for x in range(8)] for y in range(4)]
-m = 0
+roc_data = []
 for model in models:
     trainer = ScikitModelTrainer(**model)
     estimator_name = model['estimator'].__class__.__name__
     reports[estimator_name] = {}
-    d = 0
+    roc_data.append([])
 
     for data in datasets:
         print(f'Fitting {estimator_name} on {data.name}{" using GridSearchCV" if "param_grid" in model.keys() else ""}...')
@@ -92,22 +91,21 @@ for model in models:
         predicted_y_train = clf.predict(data.X_train)
         predicted_y_test = clf.predict(data.X_test)
         y_score = clf.predict_proba(data.X_test)
-        roc_data[m][d] = roc_curve(data.y_test, y_score[:,1], pos_label=1)
-        print(roc_data[m][d])
-        d += 1
+        roc_data[-1].append(roc_curve(data.y_test, y_score[:,1], pos_label=1))
+
         reports[estimator_name][data.name] = {
             DataSplit.TRAIN: classification_report(data.y_train, predicted_y_train, zero_division=0, output_dict=False),
             DataSplit.TEST: classification_report(data.y_test, predicted_y_test, zero_division=0, output_dict=False)
         }
-    m += 1
+
         #print(classification_report(data.y_test, predicted_y_test, zero_division=0))
-model_clf_list = []
-data_clf_list = []
-for i in range(4):
-    model_clf_list.append([row[i] for row in roc_data])
-graph_classification_reports(estimator_name, model_clf_list, datasets)
-for j in range(len(datasets)):
-    graph_classification_reports(estimator_name, roc_data[j, :], datasets)
+
+roc_data = np.array(roc_data)
+for m in range(len(models)):
+    graph_classification_reports(models[m]['estimator'].__class__.__name__, roc_data[m], datasets)
+
+for d in range(len(datasets)):
+    graph_classification_reports(datasets[d].name, roc_data[:, d], datasets)
 
 
 
