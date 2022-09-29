@@ -8,26 +8,17 @@ from sklearn.metrics import auc
 matplotlib.use('TkAgg')
 
 
-def graph_classification_reports(title, clf_list, legend_labels, plot_dir=r'./plots'):
+def graph_roc(title, roc_list, legend_labels, plot_dir=r'./plots'):
     lw = 2
-    fpr_list = []
-    tpr_list = []
-    roc_auc_list = []
-    for i in range(len(clf_list)):
-        fpr, tpr, threshold = clf_list[i]
-        roc_auc = auc(fpr, tpr)
-        roc_auc_list.append(roc_auc)
-        fpr_list.append(fpr)
-        tpr_list.append(tpr)
-
     colors = cycle(["aqua", "darkorange", "cornflowerblue", "blue", "red", "black", "yellow", "green"])
-    for i, color in zip(range(len(fpr_list)), colors):
+
+    for i, ((fpr, tpr, _), color) in enumerate(zip(roc_list, colors)):
         plt.plot(
-            fpr_list[i],
-            tpr_list[i],
+            fpr,
+            tpr,
             color=color,
             lw=lw,
-            label=f'{legend_labels[i]} (area = {roc_auc_list[i]:0.2f})'
+            label=f'{legend_labels[i]} (area = {auc(fpr, tpr):0.2f})'
         )
 
     plt.plot([0, 1], [0, 1], "k--", lw=lw)
