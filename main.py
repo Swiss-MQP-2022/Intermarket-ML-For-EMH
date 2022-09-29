@@ -9,7 +9,7 @@ from sklearn.metrics import classification_report, roc_curve
 
 from dataset import build_datasets
 from trainer import ScikitModelTrainer, DataSplit
-from classification_graphs import graph_classification_reports
+from classification_graphs import graph_roc
 
 datasets = build_datasets(period=5,
                           brn_features=5,
@@ -59,10 +59,10 @@ dataset_names = list(map(lambda dataset: dataset.name, datasets))  # dataset nam
 model_names = list(map(lambda model: model['estimator'].__class__.__name__, models))  # model names
 
 for m in range(len(models)):
-    graph_classification_reports(f'model: {model_names[m]}', roc_data[m], dataset_names)
+    graph_roc(f'model: {model_names[m]}', roc_data[m], dataset_names)
 
 for d in range(len(datasets)):
-    graph_classification_reports(f'dataset: {dataset_names[d]}', roc_data[:, d], model_names)
+    graph_roc(f'dataset: {dataset_names[d]}', roc_data[:, d], model_names)
 
 
 print('Done!')
