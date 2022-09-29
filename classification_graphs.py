@@ -38,7 +38,7 @@ def graph_classification_reports(title, clf_list, legend_labels):
     plt.ylim([0.0, 1.05])
     plt.xlabel("False Positive Rate")
     plt.ylabel("True Positive Rate")
-    plt.title(fr"ROC of Each Dataset for {title}")
+    plt.title(fr"ROC {title}")
     plt.legend(loc="lower right")
     plot_dir = r'./classification_plots'
     Path(plot_dir).mkdir(parents=True, exist_ok=True)  # create plots directory if doesn't exist
