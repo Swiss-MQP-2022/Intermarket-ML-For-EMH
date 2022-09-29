@@ -7,6 +7,8 @@ from scipy import stats
 
 from sklearn.decomposition import PCA
 
+from constants import DATASET_SYMBOLS, DataDict, AssetID
+
 
 class Scaler(Protocol):
     def fit(self, X): ...
@@ -77,7 +79,7 @@ def get_nonempty_numeric_columns(data: pd.DataFrame) -> pd.DataFrame:
     return df.drop(n_unique[n_unique == 1].index, axis=1)
 
 
-def load_data(path=r'./data', set_index_to_date=True, zero_col_thresh=1) -> dict[str, dict[str, pd.DataFrame]]:
+def load_data(path=r'./data', set_index_to_date=True, zero_col_thresh=1) -> DataDict:
     """
     Load all data into a 2D dictionary of data
     :param path: path to directory containing data
@@ -108,7 +110,7 @@ def load_data(path=r'./data', set_index_to_date=True, zero_col_thresh=1) -> dict
     return data
 
 
-def get_df_from_symbol(asset_type: str, symbol: str, data: dict[str, dict[str, pd.DataFrame]]) -> pd.DataFrame:
+def get_df_from_symbol(asset_type: str, symbol: str, data: DataDict) -> pd.DataFrame:
     """
     Helper function for quickly getting dfs from symbols
     :param asset_type: asset type
@@ -183,7 +185,7 @@ def map_data_dict(data: dict[str, dict[str, T]],
     return new_data
 
 
-def make_percent_dict(data: dict[str, dict[str, pd.DataFrame]], fill_method=None, zero_col_thresh=1) -> dict[str, dict[str, pd.DataFrame]]:
+def make_percent_dict(data: DataDict, fill_method=None, zero_col_thresh=1) -> DataDict:
     """
     Convert a dictionary of data to percent-change
     :param data: dictionary of data to convert
@@ -215,7 +217,7 @@ def drop_zero_rows(df: pd.DataFrame) -> pd.DataFrame:
     return df[~(df == 0).any(axis=1)]
 
 
-def remove_outliers_dict(data: dict[str, dict[str, pd.DataFrame]], z_thresh=3) -> dict[str, dict[str, pd.DataFrame]]:
+def remove_outliers_dict(data: DataDict, z_thresh=3) -> DataDict:
     """
     Remove outliers from a dictionary of data
     :param data: dictionary of data to filter
@@ -225,20 +227,16 @@ def remove_outliers_dict(data: dict[str, dict[str, pd.DataFrame]], z_thresh=3) -
     return map_data_dict(data, remove_outliers, z_thresh=z_thresh)
 
 
-def join_datasets(data: list[pd.DataFrame], y: pd.Series = None, flatten_columns=True):
+def join_datasets(data: list[pd.DataFrame], flatten_columns=True):
     """
     Join a list of datasets
     :param data: list of dataframes to join
-    :param y: separate series to filter by remaining indices of new dataset
     :param flatten_columns: whether to flatten the column names
     :return: Joined dataset
     """
     joined = pd.concat(data, axis=1, join='inner', keys=[df.attrs['name'] for df in data])
     if flatten_columns:
         joined.columns = joined.columns.to_flat_index()
-
-    if y is not None:
-        return joined, y.loc[joined.index]
 
     return joined
 
@@ -276,3 +274,18 @@ def align_data(X: Union[pd.DataFrame, pd.Series], y: Union[pd.DataFrame, pd.Seri
     """
     intersection = X.index.intersection(y.index)
     return X.loc[intersection], y.loc[intersection]
+
+
+def generate_symbol_list(asset_types: tuple[str, ...]) -> tuple[list[AssetID], str]:
+    """
+    Generate a list of symbols based on a list of desired asset types
+    :param asset_types: list of asset types to get symbols for
+    :return: list of symbols, name of set (used for making Datasets)
+    """
+    name = f'[{str.join(", ", asset_types)}]'
+
+    symbols = []
+    for asset_type in asset_types:
+        symbols.extend(DATASET_SYMBOLS[asset_type])
+
+    return symbols, name
