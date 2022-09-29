@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import classification_report, roc_curve, auc
 
 
-def graph_classification_reports(estimator_name, clf_list, datasets):
+def graph_classification_reports(title, clf_list, legend_labels):
     lw = 2
     fpr_list = []
     tpr_list = []
@@ -22,6 +22,7 @@ def graph_classification_reports(estimator_name, clf_list, datasets):
         fpr_list.append(fpr)
         tpr_list.append(tpr)
 
+    plt.figure()
     colors = cycle(["aqua", "darkorange", "cornflowerblue", "blue", "red", "black", "yellow", "green"])
     for i, color in zip(range(len(fpr_list)), colors):
         plt.plot(
@@ -29,7 +30,7 @@ def graph_classification_reports(estimator_name, clf_list, datasets):
             tpr_list[i],
             color=color,
             lw=lw,
-            label="ROC curve of class {0} (area = {1:0.2f})".format(datasets[i].name, roc_auc_list[i]),
+            label="ROC curve of class {0} (area = {1:0.2f})".format(legend_labels[i], roc_auc_list[i]),
         )
 
     plt.plot([0, 1], [0, 1], "k--", lw=lw)
@@ -37,11 +38,11 @@ def graph_classification_reports(estimator_name, clf_list, datasets):
     plt.ylim([0.0, 1.05])
     plt.xlabel("False Positive Rate")
     plt.ylabel("True Positive Rate")
-    plt.title(fr"ROC of Each Dataset for {estimator_name}")
+    plt.title(fr"ROC of Each Dataset for {title}")
     plt.legend(loc="lower right")
     plot_dir = r'./classification_plots'
     Path(plot_dir).mkdir(parents=True, exist_ok=True)  # create plots directory if doesn't exist
-    #plt.show()
-    plt.savefig(rf'{plot_dir}/{estimator_name}.png')
+    plt.savefig(rf'{plot_dir}/{title}.png')
+    plt.close
 
 

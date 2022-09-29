@@ -99,13 +99,15 @@ for model in models:
         }
 
         #print(classification_report(data.y_test, predicted_y_test, zero_division=0))
+data_names = list(map(lambda dataset: dataset.name, datasets))  # dataset names
+model_names = list(map(lambda model: model['estimator'].__class__.__name__, models))  # model names
 
 roc_data = np.array(roc_data)
 for m in range(len(models)):
-    graph_classification_reports(models[m]['estimator'].__class__.__name__, roc_data[m], datasets)
+    graph_classification_reports(models[m]['estimator'].__class__.__name__, roc_data[m], data_names)
 
 for d in range(len(datasets)):
-    graph_classification_reports(datasets[d].name, roc_data[:, d], datasets)
+    graph_classification_reports(datasets[d].name, roc_data[:, d], model_names)
 
 
 
