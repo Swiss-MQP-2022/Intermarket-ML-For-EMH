@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Protocol, Union, TypeVar, Callable
+import re
 
 import pandas as pd
 import numpy as np
@@ -289,3 +290,12 @@ def generate_symbol_list(asset_types: tuple[str, ...]) -> tuple[list[AssetID], s
         symbols.extend(DATASET_SYMBOLS[asset_type])
 
     return symbols, name
+
+
+def make_filename_safe(name: str) -> str:
+    """
+    Make a string filename-safe
+    :param name: string to make safe
+    :return: safe filename
+    """
+    return name.replace(' ', '_').replace(',', '-').replace(':', '').rstrip()
