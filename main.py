@@ -3,6 +3,7 @@ import multiprocessing as mp
 
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
@@ -86,10 +87,10 @@ if __name__ == '__main__':
 
     print('Generating ROC graphs...')
 
-    for model_name, model in reports['roc'].groupby(level=0):
+    for model_name, model in tqdm(reports['roc'].groupby(level=0)):
         graph_roc(f'model: {model_name}', model.to_numpy(), model.index.get_level_values(1).tolist())
 
-    for data_name, dataset in reports['roc'].groupby(level=1):
+    for data_name, dataset in tqdm(reports['roc'].groupby(level=1)):
         graph_roc(f'dataset: {data_name}', dataset.to_numpy(), dataset.index.get_level_values(0).tolist())
 
     print('Printing classification reports...')

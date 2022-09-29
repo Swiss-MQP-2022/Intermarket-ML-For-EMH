@@ -298,4 +298,4 @@ def make_filename_safe(name: str) -> str:
     :param name: string to make safe
     :return: safe filename
     """
-    return name.replace(' ', '_').replace(',', '-').replace(':', '').rstrip()
+    return re.sub('[,:]', '', name.rstrip()).replace(' ', '_')
