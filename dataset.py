@@ -172,22 +172,22 @@ def build_datasets(period=5, brn_features=5, zero_col_thresh=1, replace_zero=Non
         TimeSeriesDataset(spy_pct_X, spy_pct_y, period=period, scaler=StandardScaler(), name='SPY %'),
     ]
 
-    # # MULTI-ASSET DATASET GENERATION
-    # # Generate powerset of desired available asset_types
-    # asset_powerset = filterfalse(lambda x: x == (), powerset(DATASET_SYMBOLS.keys()))
-    #
-    # for asset_set in asset_powerset:  # for each set of assets in the powerset of asset types
-    #     symbol_list = utils.generate_symbol_list(asset_set)  # get list of symbols for those assets
-    #
-    #     for percent in [False, True]:  # raw data vs. percent-change
-    #         data = percent_data if percent else raw_data  # set desired dataset
-    #         for pca in [False, True]:  # whether to perform PCA
-    #             scaler = pca_pipeline if pca else StandardScaler()  # set desired scaler
-    #             postfix = f'{" %" if percent else " Raw"}{" PCA" if pca else ""}'  # dataset name postfix
-    #
-    #             # generate and append new MultiAssetDataset to dataset list
-    #             datasets.append(MultiAssetDataset([('stock', 'SPY.US')] + symbol_list[0], data, y_base,
-    #                                               name=symbol_list[1] + postfix, period=period, scaler=scaler,
-    #                                               clone_scaler=True))
+    # MULTI-ASSET DATASET GENERATION
+    # Generate powerset of desired available asset_types
+    asset_powerset = filterfalse(lambda x: x == (), powerset(DATASET_SYMBOLS.keys()))
+
+    for asset_set in asset_powerset:  # for each set of assets in the powerset of asset types
+        symbol_list = utils.generate_symbol_list(asset_set)  # get list of symbols for those assets
+
+        for percent in [False, True]:  # raw data vs. percent-change
+            data = percent_data if percent else raw_data  # set desired dataset
+            for pca in [False, True]:  # whether to perform PCA
+                scaler = pca_pipeline if pca else StandardScaler()  # set desired scaler
+                postfix = f'{" %" if percent else " Raw"}{" PCA" if pca else ""}'  # dataset name postfix
+
+                # generate and append new MultiAssetDataset to dataset list
+                datasets.append(MultiAssetDataset([('stock', 'SPY.US')] + symbol_list[0], data, y_base,
+                                                  name=symbol_list[1] + postfix, period=period, scaler=scaler,
+                                                  clone_scaler=True))
 
     return datasets
