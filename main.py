@@ -1,5 +1,3 @@
-from copy import deepcopy
-
 import numpy as np
 import pandas as pd
 
@@ -8,10 +6,6 @@ from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier as KNN
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, roc_curve
-from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
-from sklearn.pipeline import make_pipeline
-from copy import deepcopy
 
 from dataset import build_datasets
 from trainer import ScikitModelTrainer, DataSplit
@@ -37,6 +31,7 @@ models = [
 
 reports = {}
 roc_data = []
+
 for model in models:
     trainer = ScikitModelTrainer(**model)
     estimator_name = model['estimator'].__class__.__name__
@@ -50,25 +45,24 @@ for model in models:
         predicted_y_train = clf.predict(data.X_train)
         predicted_y_test = clf.predict(data.X_test)
         y_score = clf.predict_proba(data.X_test)
-        roc_data[-1].append(roc_curve(data.y_test, y_score[:,1], pos_label=1))
+
+        roc_data[-1].append(roc_curve(data.y_test, y_score[:, -1]))
 
         reports[estimator_name][data.name] = {
             DataSplit.TRAIN: classification_report(data.y_train, predicted_y_train, zero_division=0, output_dict=False),
             DataSplit.TEST: classification_report(data.y_test, predicted_y_test, zero_division=0, output_dict=False)
         }
 
-        # print(classification_report(data.y_test, predicted_y_test, zero_division=0))
+roc_data = np.array(roc_data, dtype='object')
 
-data_names = list(map(lambda dataset: dataset.name, datasets))  # dataset names
+dataset_names = list(map(lambda dataset: dataset.name, datasets))  # dataset names
 model_names = list(map(lambda model: model['estimator'].__class__.__name__, models))  # model names
 
-roc_data = np.array(roc_data)
 for m in range(len(models)):
-    graph_classification_reports(models[m]['estimator'].__class__.__name__, roc_data[m], data_names)
+    graph_classification_reports(f'model: {model_names[m]}', roc_data[m], dataset_names)
 
 for d in range(len(datasets)):
-    graph_classification_reports(datasets[d].name, roc_data[:, d], model_names)
-
+    graph_classification_reports(f'dataset: {dataset_names[d]}', roc_data[:, d], model_names)
 
 
 print('Done!')

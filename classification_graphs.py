@@ -1,16 +1,14 @@
 from itertools import cycle
 from pathlib import Path
 
-import numpy as np
 import matplotlib
-from sklearn.preprocessing import label_binarize
+import matplotlib.pyplot as plt
+from sklearn.metrics import auc
 
 matplotlib.use('TkAgg')
-import matplotlib.pyplot as plt
-from sklearn.metrics import classification_report, roc_curve, auc
 
 
-def graph_classification_reports(title, clf_list, legend_labels):
+def graph_classification_reports(title, clf_list, legend_labels, plot_dir=r'./plots'):
     lw = 2
     fpr_list = []
     tpr_list = []
@@ -22,7 +20,6 @@ def graph_classification_reports(title, clf_list, legend_labels):
         fpr_list.append(fpr)
         tpr_list.append(tpr)
 
-    plt.figure()
     colors = cycle(["aqua", "darkorange", "cornflowerblue", "blue", "red", "black", "yellow", "green"])
     for i, color in zip(range(len(fpr_list)), colors):
         plt.plot(
@@ -30,19 +27,20 @@ def graph_classification_reports(title, clf_list, legend_labels):
             tpr_list[i],
             color=color,
             lw=lw,
-            label="ROC curve of class {0} (area = {1:0.2f})".format(legend_labels[i], roc_auc_list[i]),
+            label=f'{legend_labels[i]} (area = {roc_auc_list[i]:0.2f})'
         )
 
     plt.plot([0, 1], [0, 1], "k--", lw=lw)
     plt.xlim([0.0, 1.0])
-    plt.ylim([0.0, 1.05])
+    plt.ylim([0.0, 1.0])
     plt.xlabel("False Positive Rate")
     plt.ylabel("True Positive Rate")
-    plt.title(fr"ROC of Each Dataset for {title}")
+    plt.title(f"ROC over {title}")
     plt.legend(loc="lower right")
-    plot_dir = r'./classification_plots'
+
     Path(plot_dir).mkdir(parents=True, exist_ok=True)  # create plots directory if doesn't exist
-    plt.savefig(rf'{plot_dir}/{title}.png')
-    plt.close
+
+    plt.savefig(rf'{plot_dir}/roc-{title.replace(" ", "_").replace(":", "")}.png')
+    plt.close()
 
 
