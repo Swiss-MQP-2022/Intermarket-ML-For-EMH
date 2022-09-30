@@ -47,12 +47,12 @@ if __name__ == '__main__':
     options, _ = parser.parse_args()
 
     models = [
-        dict(estimator=DecisionTreeClassifier(),
-             param_grid=dict(splitter=['best', 'random'],
-                             max_depth=[5, 10, 25, None],
-                             min_samples_split=[2, 5, 10, 50],
-                             min_samples_leaf=[1, 5, 10])),
-        dict(estimator=SVC(probability=True)),
+        # dict(estimator=DecisionTreeClassifier(),
+        #      param_grid=dict(splitter=['best', 'random'],
+        #                      max_depth=[5, 10, 25, None],
+        #                      min_samples_split=[2, 5, 10, 50],
+        #                      min_samples_leaf=[1, 5, 10])),
+        # dict(estimator=SVC(probability=True)),
         dict(estimator=KNN()),
         dict(estimator=LogisticRegression(max_iter=1000))
     ]

@@ -4,6 +4,7 @@ import re
 
 import pandas as pd
 import numpy as np
+from numpy import fft
 from scipy import stats
 
 from sklearn.decomposition import PCA
@@ -299,3 +300,15 @@ def make_filename_safe(name: str) -> str:
     :return: safe filename
     """
     return re.sub('(, )|:', '', name.rstrip()).replace(' ', '_')
+
+
+def fourier(data):
+    data = fft.fftn(data)  # TODO: axis?
+    data = np.ascontiguousarray(data).view(np.float64)
+    return data
+
+
+def inverse_fourier(data):
+    np.ascontiguousarray(data).view(np.complex128)
+    data = fft.ifftn(data)
+    return data
