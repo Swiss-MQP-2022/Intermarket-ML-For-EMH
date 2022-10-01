@@ -53,7 +53,6 @@ class TimeSeriesDataset:
 
         # get the indices of end of the training set / start of the testing set
         train_end = test_start = floor(len(X) * (1 - test_size))
-        features = X.shape[1]  # get the number of features
 
         if self.scaler is not None:  # scaler is provided
             if fit:
@@ -61,6 +60,8 @@ class TimeSeriesDataset:
             X = self.scaler.transform(X)  # scale the data
         elif isinstance(X, (pd.DataFrame, pd.Series)):  # no scaler is provided. Convert to numpy if DataFrame or Series
             X = X.to_numpy()
+
+        features = X.shape[1]  # get the number of features in X (used for sliding window)
 
         # https://stackoverflow.com/questions/43185589/sliding-windows-from-2d-array-that-slides-along-axis-0-or-rows-to-give-a-3d-arra
         # Generate sliding windows
