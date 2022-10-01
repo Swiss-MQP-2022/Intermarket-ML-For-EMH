@@ -158,43 +158,58 @@ def build_datasets(period=5, brn_features=5, zero_col_thresh=1, replace_zero=Non
     if replace_zero is not None:  # replace zeros if desired
         y_base = y_base.replace(0, replace_zero)  # replace 0s with -1 so classification is binary
 
-    # Scaling pipeline for PCA. If used with MultiAssetDataset, applies *after* join
-    pca_pipeline = make_pipeline(StandardScaler(), PCA(**pca_kwargs))
+    scalers = {
+        '': StandardScaler(),
+        'PCA': make_pipeline(StandardScaler(),
+                             PCA(**pca_kwargs)),
+        'Fourier': make_pipeline(StandardScaler(),
+                                 FunctionTransformer(utils.fourier, utils.inverse_fourier)),
+        'PCA into Fourier': make_pipeline(StandardScaler(),
+                                          PCA(**pca_kwargs),
+                                          FunctionTransformer(utils.fourier, utils.inverse_fourier)),
+        'Fourier into PCA': make_pipeline(StandardScaler(),
+                                          FunctionTransformer(utils.fourier, utils.inverse_fourier),
+                                          PCA(**pca_kwargs))
+    }
 
-    # Scaling pipeline for Fourier transform
-    fourier_pipeline = make_pipeline(StandardScaler(), FunctionTransformer(utils.fourier, utils.inverse_fourier, check_inverse=False))
-
-    # SINGLE ASSET DATASET GENERATION
-    brn_raw_X = utils.generate_brownian_motion(len(y_base), brn_features, cumulative=True)  # brownian motion
-    norm_pct_X = utils.generate_brownian_motion(len(y_base), brn_features)  # normal distribution samples
-    spy_raw_X, spy_raw_y = utils.align_data(raw_data['stock']['SPY.US'], y_base)  # raw S&P 500
-    spy_pct_X, spy_pct_y = utils.align_data(percent_data['stock']['SPY.US'], y_base)  # percent-change S&P 500
+    # Simple dataset generation
+    brn_X = utils.generate_brownian_motion(len(y_base), brn_features, cumulative=True)
+    norm_X = utils.generate_brownian_motion(len(y_base), brn_features)
+    simple_data = {
+        'SPY Raw': utils.align_data(raw_data['stock']['SPY.US'], y_base),
+        'SPY %': utils.align_data(percent_data['stock']['SPY.US'], y_base)
+    }
 
     datasets = [
-        # TimeSeriesDataset(brn_raw_X, y_base, period=period, scaler=StandardScaler(), name='Brownian Motion'),
-        # TimeSeriesDataset(norm_pct_X, y_base, period=period, scaler=StandardScaler(), name='Normal Sample'),
-        TimeSeriesDataset(spy_raw_X, spy_raw_y, period=period, scaler=StandardScaler(), name='SPY Raw'),
-        TimeSeriesDataset(spy_raw_X, spy_raw_y, period=period, scaler=fourier_pipeline, name='SPY Raw Fourier', clone_scaler=True),
-        TimeSeriesDataset(spy_pct_X, spy_pct_y, period=period, scaler=StandardScaler(), name='SPY %'),
-        TimeSeriesDataset(spy_pct_X, spy_pct_y, period=period, scaler=fourier_pipeline, name='SPY % Fourier', clone_scaler=True),
+        TimeSeriesDataset(brn_X, y_base, period=period, scaler=StandardScaler(), name='Brownian Motion'),
+        TimeSeriesDataset(norm_X, y_base, period=period, scaler=StandardScaler(), name='Normal Sample'),
     ]
 
-    # # MULTI-ASSET DATASET GENERATION
-    # # Generate powerset of desired available asset_types
-    # asset_powerset = filterfalse(lambda x: x == (), powerset(DATASET_SYMBOLS.keys()))
-    #
-    # for asset_set in asset_powerset:  # for each set of assets in the powerset of asset types
-    #     symbol_list = utils.generate_symbol_list(asset_set)  # get list of symbols for those assets
-    #
-    #     for percent in [False, True]:  # raw data vs. percent-change
-    #         data = percent_data if percent else raw_data  # set desired dataset
-    #         for pca in [False, True]:  # whether to perform PCA
-    #             scaler = pca_pipeline if pca else StandardScaler()  # set desired scaler
-    #             postfix = f'{" %" if percent else " Raw"}{" PCA" if pca else ""}'  # dataset name postfix
-    #
-    #             # generate and append new MultiAssetDataset to dataset list
-    #             datasets.append(MultiAssetDataset([('stock', 'SPY.US')] + symbol_list[0], data, y_base,
-    #                                               name=symbol_list[1] + postfix, period=period, scaler=scaler,
-    #                                               clone_scaler=True))
+    datasets.extend([
+        TimeSeriesDataset(X, y,
+                          period=period,
+                          scaler=scaler,
+                          name=f'{data_name} {scaler_name}'.rstrip(),
+                          clone_scaler=True)
+        for data_name, (X, y) in simple_data.items()
+        for scaler_name, scaler in scalers.items()
+    ])
+
+    # MULTI-ASSET DATASET GENERATION
+    # Generate powerset of desired available asset_types
+    asset_powerset = filterfalse(lambda x: x == (), powerset(DATASET_SYMBOLS.keys()))
+
+    for asset_set in asset_powerset:  # for each set of assets in the powerset of asset types
+        symbol_list = utils.generate_symbol_list(asset_set)  # get list of symbols for those assets
+
+        for percent in [False, True]:  # raw data vs. percent-change
+            data = percent_data if percent else raw_data  # set desired dataset
+            for scaler_name, scaler in scalers.items():  # Select desired scaler
+                postfix = f"{'%' if percent else 'Raw'} {scaler_name}".rstrip()  # dataset name postfix
+
+                # generate and append new MultiAssetDataset to dataset list
+                datasets.append(MultiAssetDataset([('stock', 'SPY.US')] + symbol_list[0], data, y_base,
+                                                  name=f'{symbol_list[1]} {postfix}', period=period, scaler=scaler,
+                                                  clone_scaler=True))
 
     return datasets

@@ -299,16 +299,16 @@ def make_filename_safe(name: str) -> str:
     :param name: string to make safe
     :return: safe filename
     """
-    return re.sub('(, )|:', '', name.rstrip()).replace(' ', '_')
+    return re.sub('[,:]', '', name.rstrip()).replace(' ', '_')
 
 
 def fourier(data):
-    data = fft.fftn(data)  # TODO: axis?
+    data = fft.fft(data, axis=0)
     data = np.ascontiguousarray(data).view(np.float64)
     return data
 
 
 def inverse_fourier(data):
-    np.ascontiguousarray(data).view(np.complex128)
-    data = fft.ifftn(data)
+    data = np.ascontiguousarray(data).view(np.complex128)
+    data = fft.ifft(data, axis=0).real  # floating point imprecision may introduce small imaginary
     return data

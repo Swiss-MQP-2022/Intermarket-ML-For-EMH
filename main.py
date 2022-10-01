@@ -54,7 +54,7 @@ if __name__ == '__main__':
         #                      min_samples_leaf=[1, 5, 10])),
         # dict(estimator=SVC(probability=True)),
         dict(estimator=KNN()),
-        dict(estimator=LogisticRegression(max_iter=1000))
+        # dict(estimator=LogisticRegression(max_iter=1000))
     ]
 
     datasets = build_datasets(period=5,
