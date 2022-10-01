@@ -146,6 +146,7 @@ def make_percent_data(df: pd.DataFrame, fill_method=None, zero_col_thresh=1) -> 
     :param zero_col_thresh: proportion of a column that must be zero to drop it
     :return: percent-change data
     """
+    attrs = df.attrs
     df = get_nonempty_numeric_columns(df)  # Filter to only non-empty numeric columns
     if zero_col_thresh:  # ignore columns with lots of zeros if a threshold has been set
         df = drop_zero_cols(df, thresh=zero_col_thresh)
@@ -157,6 +158,7 @@ def make_percent_data(df: pd.DataFrame, fill_method=None, zero_col_thresh=1) -> 
         df = df.replace(0, method=fill_method)  # replace zeros using fill method
 
     df = df.pct_change(fill_method=fill_method)  # compute and return percent change (uses fill method if provided)
+    df.attrs = attrs
     return df.iloc[1:]  # Remove first value (always NaN after computing percent change)
 
 
