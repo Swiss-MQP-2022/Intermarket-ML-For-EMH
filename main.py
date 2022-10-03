@@ -1,6 +1,5 @@
-import threading
 from optparse import OptionParser
-from copy import deepcopy
+import multiprocessing as mp
 
 import numpy as np
 import pandas as pd
@@ -18,16 +17,9 @@ from utils import DataSplit, print_classification_reports
 from out_functions import graph_all_roc, save_metrics
 
 
-def fit_single_model(model_trainer, dataset):
-    global reports, threaded, load_arg_sem
-
-    # workaround to prevent threads altering each other's trainers and datasets (threading.local doesn't work)
-    if threaded:
-        model_trainer = deepcopy(model_trainer)  # clone trainer
-        dataset = deepcopy(dataset)  # clone dataset
-        load_arg_sem.release()  # release semaphore preventing new threads from being created
-
-    print(f'Fitting {model_trainer.name} on {dataset.name}{" using GridSearchCV" if model_trainer.use_grid_search else ""}...')
+def fit_single_model(model_trainer, dataset, report_dict):
+    print(
+        f'Fitting {model_trainer.name} on {dataset.name}{" using GridSearchCV" if model_trainer.use_grid_search else ""}...')
 
     # Train/fit provided model trainer on the provided dataset
     clf = model_trainer.train(dataset.X_train, dataset.y_train)
@@ -38,12 +30,11 @@ def fit_single_model(model_trainer, dataset):
     y_test_score = clf.predict_proba(dataset.X_test)  # Get probabilities for predictions on test set (for ROC)
 
     # Update report dictionary with results
-    reports[model_trainer.name][dataset.name] = {
+    report_dict[model_trainer.name][dataset.name] = {
         'classification report': {
-            DataSplit.TRAIN: classification_report(dataset.y_train, predicted_y_train,
-                                                   zero_division=0, output_dict=True),
-            DataSplit.TEST: classification_report(dataset.y_test, predicted_y_test,
-                                                  zero_division=0, output_dict=True)
+            DataSplit.TRAIN: classification_report(dataset.y_train, predicted_y_train, zero_division=0,
+                                                   output_dict=True),
+            DataSplit.TEST: classification_report(dataset.y_test, predicted_y_test, zero_division=0, output_dict=True)
         },
         'roc': {
             DataSplit.TRAIN: roc_curve(dataset.y_train, y_train_score[:, -1]),
@@ -57,13 +48,12 @@ def fit_single_model(model_trainer, dataset):
 if __name__ == '__main__':
     # Initialize option parser for optional multiprocessing parameter
     parser = OptionParser()
-    parser.add_option('-t', '--thread',
+    parser.add_option('-m', '--multiprocess',
                       action='store_true',
-                      dest='thread',
-                      help='Use threading when fitting models')
+                      default=False,
+                      dest='multiprocess',
+                      help='Use multiprocessing when fitting models')
     options, _ = parser.parse_args()
-
-    threaded = options.thread
 
     # Initialize estimators and parameters to use for experiments
     models = [
@@ -99,28 +89,24 @@ if __name__ == '__main__':
                               replace_zero=-1,
                               svd_solver='full', n_components=0.95)
 
+    pr = []  # List of processes (used for multiprocessing)
     reports = {}  # Dictionary which stores result data from experiments
-    threads = []  # List of processes (used for multiprocessing)
-    load_arg_sem = threading.Semaphore()  # Semaphore to prevent creating threads while arguments are being cloned
 
     # Model experimentation
     for model in models:  # For each model
         trainer = ScikitModelTrainer(**model)  # Initialize a trainer for the model
-        reports[trainer.name] = {}  # Initialize dictionary for reports associated with model
+        reports[trainer.name] = mp.Manager().dict()  # Initialize dictionary for reports associated with model
 
         for data in datasets:  # For each dataset
-            if threading:  # Use threads if enabled
-                load_arg_sem.acquire()  # Wait to acquire semaphore before creating and starting new thread
-                # Create job (thread) to fit a single model
-                new_thread = threading.Thread(target=fit_single_model, args=(trainer, data), daemon=True)
-                new_thread.start()  # Start thread
-                threads.append(new_thread)  # Add thread to list of threads
-
+            if options.multiprocess:  # Use multiprocessing if enabled
+                # Create job (process) to fit a single model
+                pr.append(mp.Process(target=fit_single_model, args=(trainer, data, reports)))
             else:  # Do not use multiprocessing
                 # Fit a single model in the current process
-                fit_single_model(trainer, data)
+                fit_single_model(trainer, data, reports)
 
-    [t.join() for t in threads]  # Wait for all model-fitting jobs to complete
+    [p.start() for p in pr]  # Start all model-fitting jobs
+    [p.join() for p in pr]  # Wait for all model-fitting jobs to complete
 
     # Convert reports into a multi-level dataframe of results
     results = pd.DataFrame.from_dict({(m, d, r): reports[m][d][r]

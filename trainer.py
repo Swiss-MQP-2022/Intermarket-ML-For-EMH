@@ -12,7 +12,7 @@ class ScikitModelTrainer:
                  scoring: str = 'f1_weighted',  # Currently forcing string-specified scorers only
                  n_jobs: int = -1,
                  cv: Union[int, BaseCrossValidator] = 5,
-                 name=None,
+                 name = None,
                  **gs_kws: dict[str, any]):
         """
         :param estimator: Scikit-Learn estimator to fit
