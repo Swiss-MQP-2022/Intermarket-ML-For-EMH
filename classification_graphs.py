@@ -5,6 +5,8 @@ import matplotlib
 import matplotlib.pyplot as plt
 from sklearn.metrics import auc
 
+from utils import make_filename_safe
+
 matplotlib.use('TkAgg')
 
 
@@ -31,7 +33,7 @@ def graph_roc(title, roc_list, legend_labels, plot_dir=r'./plots'):
 
     Path(plot_dir).mkdir(parents=True, exist_ok=True)  # create plots directory if doesn't exist
 
-    plt.savefig(rf'{plot_dir}/roc-{title.replace(" ", "_").replace(":", "")}.png')
+    plt.savefig(rf'{plot_dir}/roc-{make_filename_safe(title)}.png')
     plt.close()
 
 
