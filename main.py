@@ -3,7 +3,6 @@ import multiprocessing as mp
 
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
@@ -12,12 +11,10 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, roc_curve
 from sklearn.dummy import DummyClassifier
 
-import utils
 from dataset import build_datasets
 from trainer import ScikitModelTrainer
 from utils import DataSplit, print_classification_reports
-from classification_graphs import graph_roc
-from constants import METRICS
+from out_functions import graph_all_roc, save_metrics
 
 
 def fit_single_model(model_trainer, dataset, report_dict):
@@ -118,23 +115,13 @@ if __name__ == '__main__':
     results = results.unstack().swaplevel(0, 1, axis=1)  # Reorganize MultiIndexes
     # Results is a DataFrame with two index levels (model, dataset) and two column levels (report type, data split)
 
-    print('Generating ROC graphs...')
+    # Generate ROC graphs
+    graph_all_roc(results)
 
-    # Generate ROC w.r.t. model plots
-    for model_name, model in tqdm(results['roc', DataSplit.TRAIN].groupby(level=0)):
-        graph_roc(f'model: {model_name}', model.to_numpy(), model.index.get_level_values(1).tolist())
-
-    # Generate ROC w.r.t. dataset plots
-    for data_name, dataset in tqdm(results['roc', DataSplit.TRAIN].groupby(level=1)):
-        graph_roc(f'dataset: {data_name}', dataset.to_numpy(), dataset.index.get_level_values(0).tolist())
+    # Save metrics to CSVs
+    save_metrics(results)
 
     # Print classification reports for all model-dataset pairs
     print_classification_reports(results)
-
-    # Save metrics to csv
-    metric_reports = results['classification report'].unstack(level=0).swaplevel(0, 1, axis=1)
-    for metric_name, metric in METRICS.items():
-        metric_data = metric_reports.applymap(lambda x: x[metric[0]][metric[1]] if isinstance(metric, tuple) else x[metric])
-        metric_data.to_csv(rf'./out/{utils.make_filename_safe(metric_name)}.csv')
 
     print('Done!')
