@@ -128,17 +128,6 @@ def load_data(path=r'./data', set_index_to_date=True, zero_col_thresh=1) -> Data
     return data
 
 
-def get_df_from_symbol(asset_type: str, symbol: str, data: DataDict) -> pd.DataFrame:
-    """
-    Helper function for quickly getting dfs from symbols
-    :param asset_type: asset type
-    :param symbol: EXCHANGE.SYMBOL
-    :param data: data object from load_data()
-    :return: specified data frame
-    """
-    return data[asset_type][symbol]
-
-
 def make_percent_series(data: pd.Series, fill_method=None) -> pd.Series:
     """
     Converts a series to percent-change
@@ -260,30 +249,6 @@ def join_datasets(data: list[pd.DataFrame], flatten_columns=True):
         joined.columns = joined.columns.to_flat_index()
 
     return joined
-
-
-def make_pca_data(df: pd.DataFrame, target: pd.Series = None, scaler: Scaler = None, **kwargs):
-    """
-    Performs principal component analysis (PCA) on the provided data
-    :param df: data to perform PCA on
-    :param target: Series to filter index by
-    :param scaler: normalization scaler to use before performing PCA
-    :param kwargs: keyword arguments to pass to PCA
-    :return: (dataframe of principal components, filtered target), (fitted PCA object, fitted scaler)
-    """
-    if target is not None:  # filter df to intersection with target if provided
-        df, target = align_data(df, target)
-
-    index = df.index  # get index before performing PCA
-
-    if scaler is not None:  # normalize df using scaler if provided
-        df = scaler.fit_transform(df)
-
-    pca = PCA(**kwargs)  # initialize PCA instance
-    principal_components = pca.fit_transform(df)  # perform PCA
-    principal_df = pd.DataFrame(data=principal_components, index=index)  # convert to dataframe with original index
-
-    return (principal_df, target), (pca, scaler)
 
 
 def align_data(X: Union[pd.DataFrame, pd.Series], y: Union[pd.DataFrame, pd.Series]) -> (Union[pd.DataFrame, pd.Series], Union[pd.DataFrame, pd.Series]):

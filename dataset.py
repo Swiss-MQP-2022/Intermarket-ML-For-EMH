@@ -89,7 +89,7 @@ class MultiAssetDataset(TimeSeriesDataset):
         :param kwargs: arbitrary keyword arguments to pass to TimeSeriesDataset
         """
         self.symbols = symbols
-        self.dfs = [utils.get_df_from_symbol(asset_type, symbol, data) for asset_type, symbol in self.symbols]
+        self.dfs = [data[asset_type][symbol] for asset_type, symbol in self.symbols]
 
         joined = utils.join_datasets(self.dfs)
         X, y = utils.align_data(joined, y)
