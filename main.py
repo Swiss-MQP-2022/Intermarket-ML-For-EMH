@@ -1,5 +1,6 @@
 from optparse import OptionParser
 import multiprocessing as mp
+from time import sleep
 
 import numpy as np
 import pandas as pd
@@ -18,8 +19,7 @@ from out_functions import graph_all_roc, save_metrics
 
 
 def fit_single_model(model_trainer, dataset, report_dict):
-    print(
-        f'Fitting {model_trainer.name} on {dataset.name}{" using GridSearchCV" if model_trainer.use_grid_search else ""}...')
+    print(f'Fitting {model_trainer.name} on {dataset.name}{" using GridSearchCV" if model_trainer.use_grid_search else ""}...')
 
     # Train/fit provided model trainer on the provided dataset
     clf = model_trainer.train(dataset.X_train, dataset.y_train)
@@ -49,8 +49,8 @@ if __name__ == '__main__':
     # Initialize option parser for optional multiprocessing parameter
     parser = OptionParser()
     parser.add_option('-m', '--multiprocess',
-                      action='store_true',
-                      default=False,
+                      action='store',
+                      type='int',
                       dest='multiprocess',
                       help='Use multiprocessing when fitting models')
     options, _ = parser.parse_args()
@@ -82,6 +82,8 @@ if __name__ == '__main__':
              name='RandomBaseline')
     ]
 
+    n_jobs = 1 if options.multiprocess is not None else -1  # n_jobs parameter for GridSearch (must be 1 with multiprocessing)
+
     # Construct datasets to experiment on
     datasets = build_datasets(period=5,
                               brn_features=5,
@@ -94,16 +96,19 @@ if __name__ == '__main__':
 
     # Model experimentation
     for model in models:  # For each model
-        trainer = ScikitModelTrainer(**model)  # Initialize a trainer for the model
+        trainer = ScikitModelTrainer(**model, n_jobs=n_jobs)  # Initialize a trainer for the model
         reports[trainer.name] = mp.Manager().dict()  # Initialize dictionary for reports associated with model
 
         for data in datasets:  # For each dataset
-            if options.multiprocess:  # Use multiprocessing if enabled
+            if options.multiprocess is not None:  # Use multiprocessing if enabled
+                while len(mp.active_children()) > options.multiprocess:  # Active processes is above process limit
+                    sleep(5)  # Sleep before checking again if a job has finished
                 # Create job (process) to fit a single model
-                pr.append(mp.Process(target=fit_single_model, args=(trainer, data, reports)))
+                new_process = mp.Process(target=fit_single_model, args=(trainer, data, reports), daemon=True)
+                pr.append(new_process)
+                new_process.start()
             else:  # Do not use multiprocessing
-                # Fit a single model in the current process
-                fit_single_model(trainer, data, reports)
+                fit_single_model(trainer, data, reports)  # Fit a single model in the current process
 
     [p.start() for p in pr]  # Start all model-fitting jobs
     [p.join() for p in pr]  # Wait for all model-fitting jobs to complete
