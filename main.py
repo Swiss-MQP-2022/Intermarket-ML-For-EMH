@@ -42,6 +42,8 @@ def fit_single_model(model_trainer, dataset, report_dict):
         }
     }
 
+    print(f'Done fitting {model_trainer.name} on {dataset.name}')
+
 
 if __name__ == '__main__':
     # Initialize option parser for optional multiprocessing parameter
