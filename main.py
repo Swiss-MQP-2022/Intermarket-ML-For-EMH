@@ -27,7 +27,8 @@ def fit_single_model(model_trainer, dataset, report_dict):
 
     predicted_y_train = clf.predict(dataset.X_train)  # Get prediction of fitted model on training set (in-sample)
     predicted_y_test = clf.predict(dataset.X_test)  # Get prediction of fitted model on test set (out-sample)
-    y_score = clf.predict_proba(dataset.X_test)  # Get probabilities for predictions on test set (used for ROC)
+    y_train_score = clf.predict_proba(dataset.X_train)  # Get probabilities for predictions on training set (for ROC)
+    y_test_score = clf.predict_proba(dataset.X_test)  # Get probabilities for predictions on test set (for ROC)
 
     # Update report dictionary with results
     report_dict[model_name][dataset.name] = {
@@ -35,7 +36,10 @@ def fit_single_model(model_trainer, dataset, report_dict):
             DataSplit.TRAIN: classification_report(dataset.y_train, predicted_y_train, zero_division=0, output_dict=False),
             DataSplit.TEST: classification_report(dataset.y_test, predicted_y_test, zero_division=0, output_dict=False)
         },
-        'roc': roc_curve(dataset.y_test, y_score[:, -1])
+        'roc': {
+            DataSplit.TRAIN: roc_curve(dataset.y_train, y_train_score[:, -1]),
+            DataSplit.TEST: roc_curve(dataset.y_test, y_test_score[:, -1])
+        }
     }
 
 
@@ -64,7 +68,7 @@ if __name__ == '__main__':
         dict(estimator=KNN(n_jobs=-1),
              param_grid=dict(n_neighbors=[5, 10, 15, 20],
                              weights=['uniform', 'distance'],
-                             metric=['l1', 'l2', 'cosine', 'haversine'])),
+                             metric=['l1', 'l2', 'cosine'])),
         dict(estimator=LogisticRegression(max_iter=1000),
              param_grid=dict(penalty=['l1', 'l2'],
                              c=np.logspace(-3, 3, 7),
@@ -102,19 +106,22 @@ if __name__ == '__main__':
     [p.join() for p in pr]  # Wait for all model-fitting jobs to complete
 
     # Convert reports into a multi-level dataframe of results
-    results = pd.DataFrame.from_dict({(m, d): reports[m][d]
+    results = pd.DataFrame.from_dict({(m, d, r): reports[m][d][r]
                                       for m in reports.keys()
-                                      for d in reports[m].keys()},
+                                      for d in reports[m].keys()
+                                      for r in reports[m][d].keys()},
                                      orient='index')
+    results = results.unstack().swaplevel(0, 1, axis=1)  # Reorganize MultiIndexes
+    # Results is a DataFrame with two index levels (model, dataset) and two column levels (report type, data split)
 
     print('Generating ROC graphs...')
 
     # Generate ROC w.r.t. model plots
-    for model_name, model in tqdm(results['roc'].groupby(level=0)):
+    for model_name, model in tqdm(results['roc', DataSplit.TRAIN].groupby(level=0)):
         graph_roc(f'model: {model_name}', model.to_numpy(), model.index.get_level_values(1).tolist())
 
     # Generate ROC w.r.t. dataset plots
-    for data_name, dataset in tqdm(results['roc'].groupby(level=1)):
+    for data_name, dataset in tqdm(results['roc', DataSplit.TRAIN].groupby(level=1)):
         graph_roc(f'dataset: {data_name}', dataset.to_numpy(), dataset.index.get_level_values(0).tolist())
 
     print_classification_reports(results)

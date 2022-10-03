@@ -287,14 +287,16 @@ def make_filename_safe(name: str) -> str:
 
 
 def print_classification_reports(results: pd.DataFrame):
+    """
+    Print out all classification reports
+    :param results: dataframe containing results
+    """
     print('Printing classification reports...')
-    # For each model
-    for model_name, model in results['classification report'].groupby(level=0):
-        # For each dataset
-        for data_name, clf_report in model.droplevel(0).items():
-            for split in [DataSplit.TRAIN, DataSplit.TEST]:
-                print(f'{model_name}: {data_name}, {split}')
-                print(clf_report[split])
+    # For each model-dataset pair
+    for (model_name, data_name), clf_report in results['classification report'].iterrows():
+        for split, report in clf_report.items():
+            print(f'{model_name}: {data_name}, {split}')
+            print(report)
 
 
 def fourier(data):
