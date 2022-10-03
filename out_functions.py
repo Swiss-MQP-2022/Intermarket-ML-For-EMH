@@ -13,7 +13,7 @@ from constants import METRICS
 matplotlib.use('TkAgg')
 
 
-def graph_roc(title, roc_list, legend_labels, plot_dir=r'./out/plots'):
+def graph_roc(title, roc_list, legend_labels, plot_dir):
     """
     Generate an ROC plot
     :param title: Title of the plot
@@ -41,32 +41,38 @@ def graph_roc(title, roc_list, legend_labels, plot_dir=r'./out/plots'):
     plt.title(f'ROC over {title}')
     plt.legend(loc='lower right')
 
-    Path(plot_dir).mkdir(parents=True, exist_ok=True)  # create plots directory if doesn't exist
-
     plt.savefig(rf'{plot_dir}/roc-{make_filename_safe(title)}.png')
     plt.close()
 
 
-def graph_all_roc(data):
+def graph_all_roc(data, plot_dir=r'./out/plots'):
     """
     Generate all ROC graphs
     :param data: dataframe containing metric data
+    :param plot_dir: directory to save plot to
     """
     print('Generating ROC graphs...')
+
+    Path(plot_dir).mkdir(parents=True, exist_ok=True)  # create plots directory if doesn't exist
+
     # Generate ROC w.r.t. model plots
     for model_name, model in tqdm(data['roc', DataSplit.TRAIN].groupby(level=0)):
-        graph_roc(f'model: {model_name}', model.to_numpy(), model.index.get_level_values(1).tolist())
+        graph_roc(f'model: {model_name}', model.to_numpy(), model.index.get_level_values(1).tolist(), plot_dir)
     # Generate ROC w.r.t. dataset plots
     for data_name, dataset in tqdm(data['roc', DataSplit.TRAIN].groupby(level=1)):
-        graph_roc(f'dataset: {data_name}', dataset.to_numpy(), dataset.index.get_level_values(0).tolist())
+        graph_roc(f'dataset: {data_name}', dataset.to_numpy(), dataset.index.get_level_values(0).tolist(), plot_dir)
 
 
-def save_metrics(data: pd.DataFrame):
+def save_metrics(data: pd.DataFrame, out_dir=r'./out'):
     """
     Generate CSVs of desired metrics
     :param data: dataframe containing metric data
+    :param out_dir: directory to save CSVs
     """
     print('Saving metrics...')
+
+    Path(out_dir).mkdir(parents=True, exist_ok=True)  # create plots directory if doesn't exist
+
     # Save metrics to csv
     metric_reports = data['classification report'].unstack(level=0).swaplevel(0, 1, axis=1)
     for metric_name, metric in METRICS.items():
