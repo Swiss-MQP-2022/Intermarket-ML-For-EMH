@@ -56,7 +56,6 @@ if __name__ == '__main__':
         dict(estimator=SVC(probability=True)),
         dict(estimator=KNN()),
         dict(estimator=LogisticRegression(max_iter=1000)),
-        dict(estimator=DummyClassifier(strategy='most_frequent')),
         dict(estimator=DummyClassifier(strategy='prior')),
         dict(estimator=DummyClassifier(strategy='uniform', random_state=0))
     ]
