@@ -115,11 +115,11 @@ if __name__ == '__main__':
     results = results.unstack().swaplevel(0, 1, axis=1)  # Reorganize MultiIndexes
     # Results is a DataFrame with two index levels (model, dataset) and two column levels (report type, data split)
 
-    # Generate ROC graphs
-    graph_all_roc(results)
-
     # Save metrics to CSVs
     save_metrics(results)
+
+    # Generate ROC graphs
+    graph_all_roc(results)
 
     # Print classification reports for all model-dataset pairs
     print_classification_reports(results)
