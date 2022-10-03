@@ -52,9 +52,11 @@ def remove_outliers(df: pd.DataFrame, z_thresh=3) -> pd.DataFrame:
     :param z_thresh: z-score threshold to consider outliers beyond
     :return: filtered dataframe
     """
+    attrs = df.attrs
     only_numeric = get_nonempty_numeric_columns(df)  # only consider non-empty numeric columns
     z_scores = np.abs(stats.zscore(only_numeric, nan_policy='omit'))  # calculate z-scores
     df = df[(z_scores < z_thresh).all(axis=1)]  # filter to only non-outliers
+    df.attrs = attrs
     return df
 
 
@@ -146,6 +148,8 @@ def make_percent_data(df: pd.DataFrame, fill_method=None, zero_col_thresh=1) -> 
     :param zero_col_thresh: proportion of a column that must be zero to drop it
     :return: percent-change data
     """
+    attrs = df.attrs
+
     df = get_nonempty_numeric_columns(df)  # Filter to only non-empty numeric columns
     if zero_col_thresh:  # ignore columns with lots of zeros if a threshold has been set
         df = drop_zero_cols(df, thresh=zero_col_thresh)
@@ -157,16 +161,17 @@ def make_percent_data(df: pd.DataFrame, fill_method=None, zero_col_thresh=1) -> 
         df = df.replace(0, method=fill_method)  # replace zeros using fill method
 
     df = df.pct_change(fill_method=fill_method)  # compute and return percent change (uses fill method if provided)
+
+    df.attrs = attrs
     return df.iloc[1:]  # Remove first value (always NaN after computing percent change)
 
 
 T = TypeVar('T')
-V = TypeVar('V')
 
 
-def map_data_dict(data: dict[str, dict[str, T]],
-                  map_func: Callable[[T, any], V],
-                  **kwargs) -> dict[str, dict[str, V]]:
+def map_data_dict(data: DataDict,
+                  map_func: Callable[[pd.DataFrame, any], T],
+                  **kwargs) -> dict[str, dict[str, T]]:
     """
     Maps a data dictionary based on the provided function
     :param data: dictionary of data to map
