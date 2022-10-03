@@ -1,5 +1,6 @@
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import classification_report
+from sklearn.dummy import DummyClassifier
 
 from dataset import build_datasets
 from trainer import ScikitModelTrainer, DataSplit
@@ -20,6 +21,9 @@ models = [
     # dict(estimator=SVC()),
     # dict(estimator=KNN()),
     # dict(estimator=LogisticRegression())
+    dict(estimator=DummyClassifier(strategy='most_frequent')),
+    dict(estimator=DummyClassifier(strategy='prior')),
+    dict(estimator=DummyClassifier(strategy='uniform', random_state=0))
 ]
 
 reports = {}
