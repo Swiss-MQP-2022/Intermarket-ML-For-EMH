@@ -19,8 +19,7 @@ from classification_graphs import graph_roc
 
 
 def fit_single_model(model_trainer, dataset, report_dict):
-    model_name = model_trainer.estimator.__class__.__name__  # Save estimator name
-    print(f'Fitting {model_name} on {dataset.name}{" using GridSearchCV" if model_trainer.use_grid_search else ""}...')
+    print(f'Fitting {model_trainer.name} on {dataset.name}{" using GridSearchCV" if model_trainer.use_grid_search else ""}...')
 
     # Train/fit provided model trainer on the provided dataset
     clf = model_trainer.train(dataset.X_train, dataset.y_train)
@@ -31,7 +30,7 @@ def fit_single_model(model_trainer, dataset, report_dict):
     y_test_score = clf.predict_proba(dataset.X_test)  # Get probabilities for predictions on test set (for ROC)
 
     # Update report dictionary with results
-    report_dict[model_name][dataset.name] = {
+    report_dict[model_trainer.name][dataset.name] = {
         'classification report': {
             DataSplit.TRAIN: classification_report(dataset.y_train, predicted_y_train, zero_division=0, output_dict=False),
             DataSplit.TEST: classification_report(dataset.y_test, predicted_y_test, zero_division=0, output_dict=False)
@@ -74,8 +73,10 @@ if __name__ == '__main__':
                              c=np.logspace(-3, 3, 7),
                              solver=['newton-cg', 'lbfgs', 'liblinear']),
              error_score=0),
-        dict(estimator=DummyClassifier(strategy='prior')),
-        dict(estimator=DummyClassifier(strategy='uniform', random_state=0))
+        dict(estimator=DummyClassifier(strategy='prior'),
+             name='PriorBaseline'),
+        dict(estimator=DummyClassifier(strategy='uniform', random_state=0),
+             name='RandomBaseline')
     ]
 
     # Construct datasets to experiment on
@@ -91,8 +92,7 @@ if __name__ == '__main__':
     # Model experimentation
     for model in models:  # For each model
         trainer = ScikitModelTrainer(**model)  # Initialize a trainer for the model
-        estimator_name = model['estimator'].__class__.__name__  # save model name
-        reports[estimator_name] = mp.Manager().dict()  # Initialize dictionary for reports associated with model
+        reports[trainer.name] = mp.Manager().dict()  # Initialize dictionary for reports associated with model
 
         for data in datasets:  # For each dataset
             if options.multiprocess:  # Use multiprocessing if enabled
@@ -124,6 +124,7 @@ if __name__ == '__main__':
     for data_name, dataset in tqdm(results['roc', DataSplit.TRAIN].groupby(level=1)):
         graph_roc(f'dataset: {data_name}', dataset.to_numpy(), dataset.index.get_level_values(0).tolist())
 
+    # Print classification reports for all model-dataset pairs
     print_classification_reports(results)
 
     print('Done!')

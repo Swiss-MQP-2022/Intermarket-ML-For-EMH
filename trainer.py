@@ -12,6 +12,7 @@ class ScikitModelTrainer:
                  scoring: str = 'f1_weighted',  # Currently forcing string-specified scorers only
                  n_jobs: int = -1,
                  cv: Union[int, BaseCrossValidator] = 5,
+                 name = None,
                  **gs_kws: dict[str, any]):
         """
         :param estimator: Scikit-Learn estimator to fit
@@ -23,6 +24,7 @@ class ScikitModelTrainer:
         """
         self.estimator = estimator
         self.use_grid_search = param_grid is not None
+        self.name = name if name is not None else estimator.__class__.__name__
 
         if isinstance(cv, int):
             cv = TimeSeriesSplit(n_splits=cv)
