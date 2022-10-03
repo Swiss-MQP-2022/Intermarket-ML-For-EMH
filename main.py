@@ -10,6 +10,7 @@ from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier as KNN
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, roc_curve
+from sklearn.dummy import DummyClassifier
 
 from dataset import build_datasets
 from trainer import ScikitModelTrainer, DataSplit
@@ -54,7 +55,10 @@ if __name__ == '__main__':
                              min_samples_leaf=[1, 5, 10])),
         dict(estimator=SVC(probability=True)),
         dict(estimator=KNN()),
-        dict(estimator=LogisticRegression(max_iter=1000))
+        dict(estimator=LogisticRegression(max_iter=1000)),
+        dict(estimator=DummyClassifier(strategy='most_frequent')),
+        dict(estimator=DummyClassifier(strategy='prior')),
+        dict(estimator=DummyClassifier(strategy='uniform', random_state=0))
     ]
 
     datasets = build_datasets(period=5,
