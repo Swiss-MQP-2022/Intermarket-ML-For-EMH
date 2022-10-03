@@ -4,6 +4,7 @@ import re
 
 import pandas as pd
 import numpy as np
+from numpy import fft
 from scipy import stats
 
 from sklearn.decomposition import PCA
@@ -304,3 +305,28 @@ def make_filename_safe(name: str) -> str:
     :return: safe filename
     """
     return re.sub('[,:]', '', name.rstrip()).replace(' ', '_')
+
+
+def fourier(data):
+    """
+    Applies a fourier transform on the provided data
+    (note: creates additional columns to store complex components)
+    :param data: data to transform
+    :return: fourier transformed data
+    """
+    data = fft.fft(data, axis=0)
+    data = np.ascontiguousarray(data).view(np.float64)
+    return data
+
+
+def inverse_fourier(data):
+    """
+    Applies an inverse fourier transform on the provided data
+    (note: assumes complex components are interleaved with reals for complex conversion)
+    (note: this function may not produce identical data to original data due to floating point imprecision)
+    :param data:
+    :return:
+    """
+    data = np.ascontiguousarray(data).view(np.complex128)
+    data = fft.ifft(data, axis=0).real
+    return data
