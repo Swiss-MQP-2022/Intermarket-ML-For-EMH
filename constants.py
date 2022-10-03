@@ -1,4 +1,5 @@
 import pandas as pd
+from sklearn.preprocessing import FunctionTransformer
 
 DataDict = dict[str, dict[str, pd.DataFrame]]
 AssetID = tuple[str, str]
@@ -27,3 +28,5 @@ DATASET_SYMBOLS = {
                             ('future', 'ZC.COMM'),
                             ('future', 'ZS.COMM')]
 }
+
+DUMMY_SCALER = FunctionTransformer(lambda x: x)

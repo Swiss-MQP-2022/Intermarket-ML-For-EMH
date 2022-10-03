@@ -1,17 +1,8 @@
-from typing import Union, Protocol
-from enum import Enum
-
-import numpy as np
+from typing import Union
 
 from sklearn.model_selection import TimeSeriesSplit, GridSearchCV, BaseCrossValidator
 
-
-class Estimator(Protocol):
-    def fit(self, X, y):
-        ...
-
-    def predict(self, X, y) -> ...:
-        ...
+from utils import Estimator
 
 
 class ScikitModelTrainer:
@@ -59,17 +50,3 @@ class ScikitModelTrainer:
             self.estimator.fit(X, y)
 
         return self.estimator
-
-
-class DataSplit(Enum):
-    TRAIN = 'train'
-    VALIDATE = 'validation'
-    TEST = 'test'
-    ALL = 'ALL'
-
-
-METRIC_NAMES = ['loss', 'accuracy', 'balanced accuracy']
-
-
-def append_metrics(metric_dict: dict[str, list[np.number]], data: dict[str, np.number]):
-    [metric_dict[metric].append(data[metric]) for metric in METRIC_NAMES]

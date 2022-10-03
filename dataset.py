@@ -2,12 +2,11 @@ from itertools import filterfalse
 from math import floor
 
 import numpy as np
-from numpy import fft
 from numpy.lib import stride_tricks
 import pandas as pd
 from more_itertools import powerset
-from sklearn.decomposition import PCA
 
+from sklearn.decomposition import PCA
 from sklearn.model_selection import train_test_split
 from sklearn.base import clone
 from sklearn.pipeline import make_pipeline
@@ -17,14 +16,14 @@ from torch.utils.data import Dataset, Subset, DataLoader
 
 import utils
 from utils import Scaler
-from constants import DataDict, AssetID, DATASET_SYMBOLS
+from constants import DataDict, AssetID, DATASET_SYMBOLS, DUMMY_SCALER
 
 
 class TimeSeriesDataset:
     def __init__(self, X, y,
                  period=100,
                  test_size=0.2,
-                 scaler: Scaler = None,
+                 scaler: Scaler = DUMMY_SCALER,
                  fit=True,
                  flatten=True,
                  name=None,
@@ -55,11 +54,11 @@ class TimeSeriesDataset:
         # get the indices of end of the training set / start of the testing set
         train_end = test_start = floor(len(X) * (1 - test_size))
 
-        if self.scaler is not None:  # scaler is provided
-            if fit:
-                self.scaler.fit(X[:train_end])  # fit the scaler to the training data
-            X = self.scaler.transform(X)  # scale the data
-        elif isinstance(X, (pd.DataFrame, pd.Series)):  # no scaler is provided. Convert to numpy if DataFrame or Series
+        if fit:
+            self.scaler.fit(X[:train_end])  # fit the scaler to the training data
+        X = self.scaler.transform(X)  # scale the data
+
+        if isinstance(X, (pd.DataFrame, pd.Series)):  # no scaler is provided. Convert to numpy if DataFrame or Series
             X = X.to_numpy()
 
         features = X.shape[1]  # get the number of features

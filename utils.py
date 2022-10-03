@@ -1,5 +1,6 @@
+from enum import Enum
 from pathlib import Path
-from typing import Protocol, Union, TypeVar, Callable
+from typing import Union, TypeVar, Callable, Protocol
 import re
 
 import pandas as pd
@@ -12,11 +13,24 @@ from sklearn.decomposition import PCA
 from constants import DATASET_SYMBOLS, DataDict, AssetID
 
 
+class DataSplit(Enum):
+    TRAIN = 'train'
+    VALIDATE = 'validation'
+    TEST = 'test'
+    ALL = 'ALL'
+
+
 class Scaler(Protocol):
     def fit(self, X): ...
     def transform(self, X) -> np.ndarray: ...
     def fit_transform(self, X) -> np.ndarray: ...
     def inverse_transform(self, X) -> np.ndarray: ...
+
+
+class Estimator(Protocol):
+    def fit(self, X, y): ...
+    def predict(self, X) -> ...: ...
+    def predict_proba(self, x) -> ...: ...
 
 
 def pct_to_cumulative(data, initial=None):
@@ -307,6 +321,17 @@ def make_filename_safe(name: str) -> str:
     return re.sub('[,:]', '', name.rstrip()).replace(' ', '_')
 
 
+def print_classification_reports(results: pd.DataFrame):
+    print('Printing classification reports...')
+    # For each model
+    for model_name, model in results['classification report'].groupby(level=0):
+        # For each dataset
+        for data_name, clf_report in model.droplevel(0).items():
+            for split in [DataSplit.TRAIN, DataSplit.TEST]:
+                print(f'{model_name}: {data_name}, {split}')
+                print(clf_report[split])
+
+
 def fourier(data):
     """
     Applies a fourier transform on the provided data
@@ -324,8 +349,8 @@ def inverse_fourier(data):
     Applies an inverse fourier transform on the provided data
     (note: assumes complex components are interleaved with reals for complex conversion)
     (note: this function may not produce identical data to original data due to floating point imprecision)
-    :param data:
-    :return:
+    :param data: data to apply inverse fourier to
+    :return: inverse-fourier transformed data
     """
     data = np.ascontiguousarray(data).view(np.complex128)
     data = fft.ifft(data, axis=0).real
