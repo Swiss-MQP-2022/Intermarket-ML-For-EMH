@@ -12,14 +12,17 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, roc_curve
 from sklearn.dummy import DummyClassifier
 
+import utils
 from dataset import build_datasets
 from trainer import ScikitModelTrainer
 from utils import DataSplit, print_classification_reports
 from classification_graphs import graph_roc
+from constants import METRICS
 
 
 def fit_single_model(model_trainer, dataset, report_dict):
-    print(f'Fitting {model_trainer.name} on {dataset.name}{" using GridSearchCV" if model_trainer.use_grid_search else ""}...')
+    print(
+        f'Fitting {model_trainer.name} on {dataset.name}{" using GridSearchCV" if model_trainer.use_grid_search else ""}...')
 
     # Train/fit provided model trainer on the provided dataset
     clf = model_trainer.train(dataset.X_train, dataset.y_train)
@@ -32,8 +35,9 @@ def fit_single_model(model_trainer, dataset, report_dict):
     # Update report dictionary with results
     report_dict[model_trainer.name][dataset.name] = {
         'classification report': {
-            DataSplit.TRAIN: classification_report(dataset.y_train, predicted_y_train, zero_division=0, output_dict=False),
-            DataSplit.TEST: classification_report(dataset.y_test, predicted_y_test, zero_division=0, output_dict=False)
+            DataSplit.TRAIN: classification_report(dataset.y_train, predicted_y_train, zero_division=0,
+                                                   output_dict=True),
+            DataSplit.TEST: classification_report(dataset.y_test, predicted_y_test, zero_division=0, output_dict=True)
         },
         'roc': {
             DataSplit.TRAIN: roc_curve(dataset.y_train, y_train_score[:, -1]),
@@ -54,25 +58,25 @@ if __name__ == '__main__':
 
     # Initialize estimators and parameters to use for experiments
     models = [
-        dict(estimator=DecisionTreeClassifier(),
-             param_grid=dict(splitter=['best', 'random'],
-                             max_depth=[5, 10, 25, None],
-                             min_samples_split=[2, 5, 10, 50],
-                             min_samples_leaf=[1, 5, 10])),
-        dict(estimator=SVC(probability=True),
-             param_grid=dict(kernel=["linear", "poly", "rbf", "sigmoid"],
-                             shrinking=[True, False],
-                             probability=[True, False],
-                             C=[1, 4, 9, 16, 25])),
+        # dict(estimator=DecisionTreeClassifier(),
+        #      param_grid=dict(splitter=['best', 'random'],
+        #                      max_depth=[5, 10, 25, None],
+        #                      min_samples_split=[2, 5, 10, 50],
+        #                      min_samples_leaf=[1, 5, 10])),
+        # dict(estimator=SVC(probability=True),
+        #      param_grid=dict(kernel=['linear', 'poly', 'rbf', 'sigmoid'],
+        #                      shrinking=[True, False],
+        #                      probability=[True, False],
+        #                      C=[1, 4, 9, 16, 25])),
         dict(estimator=KNN(n_jobs=-1),
              param_grid=dict(n_neighbors=[5, 10, 15, 20],
                              weights=['uniform', 'distance'],
                              metric=['l1', 'l2', 'cosine'])),
-        dict(estimator=LogisticRegression(max_iter=1000),
-             param_grid=dict(penalty=['l1', 'l2'],
-                             c=np.logspace(-3, 3, 7),
-                             solver=['newton-cg', 'lbfgs', 'liblinear']),
-             error_score=0),
+        # dict(estimator=LogisticRegression(max_iter=1000),
+        #      param_grid=dict(penalty=['l1', 'l2'],
+        #                      c=np.logspace(-3, 3, 7),
+        #                      solver=['newton-cg', 'lbfgs', 'liblinear']),
+        #      error_score=0),
         dict(estimator=DummyClassifier(strategy='prior'),
              name='PriorBaseline'),
         dict(estimator=DummyClassifier(strategy='uniform', random_state=0),
@@ -126,5 +130,11 @@ if __name__ == '__main__':
 
     # Print classification reports for all model-dataset pairs
     print_classification_reports(results)
+
+    # Save metrics to csv
+    metric_reports = results['classification report'].unstack(level=0).swaplevel(0, 1, axis=1)
+    for metric_name, metric in METRICS.items():
+        metric_data = metric_reports.applymap(lambda x: x[metric[0]][metric[1]] if isinstance(metric, tuple) else x[metric])
+        metric_data.to_csv(rf'./out/{utils.make_filename_safe(metric_name)}.csv')
 
     print('Done!')

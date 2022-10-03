@@ -110,7 +110,7 @@ def load_data(path=r'./data', set_index_to_date=True, zero_col_thresh=1) -> Data
     data = {}
     for asset_type in path.iterdir():  # for each folder (asset type) in data directory
         data[asset_type.name] = {}
-        for filename in asset_type.glob("*.csv"):  # for each file (asset) in folder
+        for filename in asset_type.glob('*.csv'):  # for each file (asset) in folder
             asset_name = filename.stem  # get asset name
 
             df = pd.read_csv(filename, header=0)  # load to dataframe

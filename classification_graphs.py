@@ -10,9 +10,9 @@ from utils import make_filename_safe
 matplotlib.use('TkAgg')
 
 
-def graph_roc(title, roc_list, legend_labels, plot_dir=r'./plots'):
+def graph_roc(title, roc_list, legend_labels, plot_dir=r'./out/plots'):
     lw = 2
-    colors = cycle(["aqua", "darkorange", "cornflowerblue", "blue", "red", "black", "yellow", "green"])
+    colors = cycle(['aqua', 'darkorange', 'cornflowerblue', 'blue', 'red', 'black', 'yellow', 'green'])
 
     for i, ((fpr, tpr, _), color) in enumerate(zip(roc_list, colors)):
         plt.plot(
@@ -23,13 +23,13 @@ def graph_roc(title, roc_list, legend_labels, plot_dir=r'./plots'):
             label=f'{legend_labels[i]} (area = {auc(fpr, tpr):0.2f})'
         )
 
-    plt.plot([0, 1], [0, 1], "k--", lw=lw)
+    plt.plot([0, 1], [0, 1], 'k--', lw=lw)
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.0])
-    plt.xlabel("False Positive Rate")
-    plt.ylabel("True Positive Rate")
-    plt.title(f"ROC over {title}")
-    plt.legend(loc="lower right")
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title(f'ROC over {title}')
+    plt.legend(loc='lower right')
 
     Path(plot_dir).mkdir(parents=True, exist_ok=True)  # create plots directory if doesn't exist
 

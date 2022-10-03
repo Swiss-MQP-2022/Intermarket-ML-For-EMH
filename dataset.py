@@ -161,7 +161,7 @@ def build_datasets(period=5, brn_features=5, zero_col_thresh=1, replace_zero=Non
         for percent in [False, True]:  # raw data vs. percent-change
             data = percent_data if percent else raw_data  # set desired dataset
             for scaler_name, scaler in scalers.items():  # Select desired scaler
-                postfix = f"{'%' if percent else 'Raw'} {scaler_name}".rstrip()  # dataset name postfix
+                postfix = f'{"%" if percent else "Raw"} {scaler_name}'.rstrip()  # dataset name postfix
 
                 # generate and append new MultiAssetDataset to dataset list
                 datasets.append(MultiAssetDataset([('stock', 'SPY.US')] + symbol_list[0], data, y_base,

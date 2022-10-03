@@ -30,3 +30,9 @@ DATASET_SYMBOLS = {
 }
 
 DUMMY_SCALER = FunctionTransformer(lambda x: x)
+
+METRICS = {
+    'accuracy': 'accuracy',
+    'weighted f1': ('weighted avg', 'f1-score'),
+    'macro f1': ('macro avg', 'f1-score')
+}
