@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.svm import LinearSVC
+from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier as KNN
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, roc_curve
@@ -70,16 +70,15 @@ if __name__ == '__main__':
                                              max_depth=[5, 10, 25, None],
                                              min_samples_split=[2, 5, 10, 50],
                                              min_samples_leaf=[1, 5, 10])),
-        'SVC': dict(estimator=LinearSVC(),
-                    param_grid=dict(penalty=['l1', 'l2'],
-                                    C=[1, 4, 9, 16, 25],
-                                    loss=['hinge', 'squared_hinge']),
+        'SVC': dict(estimator=SVC(kernel='linear', probability=True),
+                    param_grid=dict(C=[1, 4, 9, 16, 25],
+                                    shrinking=[True, False]),
                     error_score=0),
         'KNN': dict(estimator=KNN(n_jobs=-1),
                     param_grid=dict(n_neighbors=[5, 10, 15, 20],
                                     weights=['uniform', 'distance'],
                                     metric=['l1', 'l2', 'cosine'])),
-        'LogisticRegression': dict(estimator=LogisticRegression(max_iter=1e6),
+        'LogisticRegression': dict(estimator=LogisticRegression(max_iter=1e4),
                                    param_grid=dict(penalty=['l1', 'l2'],
                                                    C=np.logspace(-3, 3, 7),
                                                    solver=['newton-cg', 'lbfgs', 'liblinear']),
