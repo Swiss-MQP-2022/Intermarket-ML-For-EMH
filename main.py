@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import LinearSVC
 from sklearn.neighbors import KNeighborsClassifier as KNN
 from sklearn.linear_model import LogisticRegression
@@ -71,6 +72,12 @@ if __name__ == '__main__':
     models = {
         'DecisionTree': dict(estimator=DecisionTreeClassifier(),
                              param_grid=dict(splitter=['best', 'random'],
+                                             max_depth=[5, 10, 25, None],
+                                             min_samples_split=[2, 5, 10, 50],
+                                             min_samples_leaf=[1, 5, 10])),
+        'RandomForest': dict(estimator=RandomForestClassifier(n_jobs=n_jobs),
+                             param_grid=dict(n_estimators=[50, 100, 500],
+                                             criterion=['gini', 'entropy'],
                                              max_depth=[5, 10, 25, None],
                                              min_samples_split=[2, 5, 10, 50],
                                              min_samples_leaf=[1, 5, 10])),
