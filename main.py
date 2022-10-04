@@ -6,11 +6,12 @@ import numpy as np
 import pandas as pd
 
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.svm import SVC
+from sklearn.svm import LinearSVC
 from sklearn.neighbors import KNeighborsClassifier as KNN
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, roc_curve
 from sklearn.dummy import DummyClassifier
+from sklearn.calibration import CalibratedClassifierCV
 
 from dataset import build_datasets
 from trainer import ScikitModelTrainer
@@ -23,6 +24,8 @@ def fit_single_model(model_trainer, dataset, report_dict):
 
     # Train/fit provided model trainer on the provided dataset
     clf = model_trainer.train(dataset.X_train, dataset.y_train)
+    if model_trainer.name == 'SVC':
+        clf = CalibratedClassifierCV(clf, cv='prefit')
 
     predicted_y_train = clf.predict(dataset.X_train)  # Get prediction of fitted model on training set (in-sample)
     predicted_y_test = clf.predict(dataset.X_test)  # Get prediction of fitted model on test set (out-sample)
@@ -70,9 +73,10 @@ if __name__ == '__main__':
                                              max_depth=[5, 10, 25, None],
                                              min_samples_split=[2, 5, 10, 50],
                                              min_samples_leaf=[1, 5, 10])),
-        'SVC': dict(estimator=SVC(kernel='linear', probability=True),
-                    param_grid=dict(C=[1, 4, 9, 16, 25],
-                                    shrinking=[True, False]),
+        'SVC': dict(estimator=LinearSVC(),
+                    param_grid=dict(penalty=['l1', 'l2'],
+                                    C=[1, 4, 9, 16, 25],
+                                    loss=['hinge', 'squared_hinge']),
                     error_score=0),
         'KNN': dict(estimator=KNN(n_jobs=-1),
                     param_grid=dict(n_neighbors=[5, 10, 15, 20],
