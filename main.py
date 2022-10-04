@@ -48,41 +48,48 @@ def fit_single_model(model_trainer, dataset, report_dict):
 if __name__ == '__main__':
     # Initialize option parser for optional multiprocessing parameter
     parser = OptionParser()
-    parser.add_option('-m', '--multiprocess',
+    parser.add_option('-p', '--processes',
                       action='store',
                       type='int',
                       dest='multiprocess',
                       help='Use multiprocessing when fitting models')
+    parser.add_option('-m', '--model',
+                      action='store',
+                      type='str',
+                      dest='model',
+                      help='Singular model to train')
     options, _ = parser.parse_args()
 
-    # Initialize estimators and parameters to use for experiments
-    models = [
-        dict(estimator=DecisionTreeClassifier(),
-             param_grid=dict(splitter=['best', 'random'],
-                             max_depth=[5, 10, 25, None],
-                             min_samples_split=[2, 5, 10, 50],
-                             min_samples_leaf=[1, 5, 10])),
-        dict(estimator=SVC(probability=True),
-             param_grid=dict(kernel=['linear', 'poly', 'rbf', 'sigmoid'],
-                             shrinking=[True, False],
-                             probability=[True, False],
-                             C=[1, 4, 9, 16, 25])),
-        dict(estimator=KNN(n_jobs=-1),
-             param_grid=dict(n_neighbors=[5, 10, 15, 20],
-                             weights=['uniform', 'distance'],
-                             metric=['l1', 'l2', 'cosine'])),
-        dict(estimator=LogisticRegression(max_iter=1000),
-             param_grid=dict(penalty=['l1', 'l2'],
-                             c=np.logspace(-3, 3, 7),
-                             solver=['newton-cg', 'lbfgs', 'liblinear']),
-             error_score=0),
-        dict(estimator=DummyClassifier(strategy='prior'),
-             name='PriorBaseline'),
-        dict(estimator=DummyClassifier(strategy='uniform', random_state=0),
-             name='RandomBaseline')
-    ]
+    # n_jobs parameter for GridSearch (must be 1 with multiprocessing)
+    n_jobs = 1 if options.multiprocess is not None else -1
 
-    n_jobs = 1 if options.multiprocess is not None else -1  # n_jobs parameter for GridSearch (must be 1 with multiprocessing)
+    # Initialize estimators and parameters to use for experiments
+    models = {
+        'DecisionTree': dict(estimator=DecisionTreeClassifier(),
+                             param_grid=dict(splitter=['best', 'random'],
+                                             max_depth=[5, 10, 25, None],
+                                             min_samples_split=[2, 5, 10, 50],
+                                             min_samples_leaf=[1, 5, 10])),
+        'SVC': dict(estimator=SVC(probability=True),
+                    param_grid=dict(kernel=['linear', 'poly', 'rbf', 'sigmoid'],
+                                    shrinking=[True, False],
+                                    probability=[True, False],
+                                    C=[1, 4, 9, 16, 25])),
+        'KNN': dict(estimator=KNN(n_jobs=-1),
+                    param_grid=dict(n_neighbors=[5, 10, 15, 20],
+                                    weights=['uniform', 'distance'],
+                                    metric=['l1', 'l2', 'cosine'])),
+        'LogisticRegression': dict(estimator=LogisticRegression(max_iter=1000),
+                                   param_grid=dict(penalty=['l1', 'l2'],
+                                                   c=np.logspace(-3, 3, 7),
+                                                   solver=['newton-cg', 'lbfgs', 'liblinear']),
+                                   error_score=0),
+        'PriorBaseline': dict(estimator=DummyClassifier(strategy='prior')),
+        'RandomBaseline': dict(estimator=DummyClassifier(strategy='uniform', random_state=0))
+    }
+
+    if options.model is not None:
+        models = {model_name: model for model_name, model in models.items() if model_name == options.model}
 
     # Construct datasets to experiment on
     datasets = build_datasets(period=5,
@@ -95,8 +102,8 @@ if __name__ == '__main__':
     reports = {}  # Dictionary which stores result data from experiments
 
     # Model experimentation
-    for model in models:  # For each model
-        trainer = ScikitModelTrainer(**model, n_jobs=n_jobs)  # Initialize a trainer for the model
+    for model_name, model in models.items():  # For each model
+        trainer = ScikitModelTrainer(**model, n_jobs=n_jobs, name=model_name)  # Initialize a trainer for the model
         reports[trainer.name] = mp.Manager().dict()  # Initialize dictionary for reports associated with model
 
         for data in datasets:  # For each dataset
@@ -123,7 +130,7 @@ if __name__ == '__main__':
     # Results is a DataFrame with two index levels (model, dataset) and two column levels (report type, data split)
 
     # Save metrics to CSVs
-    save_metrics(results)
+    save_metrics(results, model_name=options.model if options.model is not None else '')
 
     # Generate ROC graphs
     graph_all_roc(results)

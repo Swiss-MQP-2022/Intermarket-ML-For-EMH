@@ -63,10 +63,11 @@ def graph_all_roc(data, plot_dir=r'./out/plots'):
         graph_roc(f'dataset: {data_name}', dataset.to_numpy(), dataset.index.get_level_values(0).tolist(), plot_dir)
 
 
-def save_metrics(data: pd.DataFrame, out_dir=r'./out'):
+def save_metrics(data: pd.DataFrame, model_name='', out_dir=r'./out'):
     """
     Generate CSVs of desired metrics
     :param data: dataframe containing metric data
+    :param model_name: name of model (prefix for filename)
     :param out_dir: directory to save CSVs
     """
     print('Saving metrics...')
@@ -78,4 +79,4 @@ def save_metrics(data: pd.DataFrame, out_dir=r'./out'):
     for metric_name, metric in METRICS.items():
         metric_data = metric_reports.applymap(
             lambda x: x[metric[0]][metric[1]] if isinstance(metric, tuple) else x[metric])
-        metric_data.to_csv(rf'./out/{make_filename_safe(metric_name)}.csv')
+        metric_data.to_csv(rf'./out/{make_filename_safe(f"{model_name}_{metric_name}")}.csv')
