@@ -81,7 +81,7 @@ if __name__ == '__main__':
                                     metric=['l1', 'l2', 'cosine'])),
         'LogisticRegression': dict(estimator=LogisticRegression(max_iter=1000),
                                    param_grid=dict(penalty=['l1', 'l2'],
-                                                   c=np.logspace(-3, 3, 7),
+                                                   C=np.logspace(-3, 3, 7),
                                                    solver=['newton-cg', 'lbfgs', 'liblinear']),
                                    error_score=0),
         'PriorBaseline': dict(estimator=DummyClassifier(strategy='prior')),
