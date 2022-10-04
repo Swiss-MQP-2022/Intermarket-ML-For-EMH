@@ -26,6 +26,7 @@ def fit_single_model(model_trainer, dataset, report_dict):
     clf = model_trainer.train(dataset.X_train, dataset.y_train)
     if model_trainer.name == 'SVC':
         clf = CalibratedClassifierCV(clf, cv='prefit')
+        clf.fit(dataset.X_train, dataset.y_train)
 
     predicted_y_train = clf.predict(dataset.X_train)  # Get prediction of fitted model on training set (in-sample)
     predicted_y_test = clf.predict(dataset.X_test)  # Get prediction of fitted model on test set (out-sample)
