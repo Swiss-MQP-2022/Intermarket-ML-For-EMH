@@ -113,11 +113,10 @@ if __name__ == '__main__':
                 # Create job (process) to fit a single model
                 new_process = mp.Process(target=fit_single_model, args=(trainer, data, reports), daemon=True)
                 pr.append(new_process)
-                new_process.start()
+                new_process.start()  # Start job
             else:  # Do not use multiprocessing
                 fit_single_model(trainer, data, reports)  # Fit a single model in the current process
 
-    [p.start() for p in pr]  # Start all model-fitting jobs
     [p.join() for p in pr]  # Wait for all model-fitting jobs to complete
 
     # Convert reports into a multi-level dataframe of results
