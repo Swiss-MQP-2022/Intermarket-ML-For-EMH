@@ -74,7 +74,7 @@ if __name__ == '__main__':
                                              max_depth=[5, 10, 25, None],
                                              min_samples_split=[2, 5, 10, 50],
                                              min_samples_leaf=[1, 5, 10])),
-        'SVC': dict(estimator=LinearSVC(max_iter=1e5),
+        'SVC': dict(estimator=LinearSVC(max_iter=1e6),
                     param_grid=dict(penalty=['l1', 'l2'],
                                     C=[1, 4, 9, 16, 25],
                                     loss=['hinge', 'squared_hinge']),
