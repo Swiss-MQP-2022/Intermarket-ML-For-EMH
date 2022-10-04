@@ -79,7 +79,7 @@ if __name__ == '__main__':
                     param_grid=dict(n_neighbors=[5, 10, 15, 20],
                                     weights=['uniform', 'distance'],
                                     metric=['l1', 'l2', 'cosine'])),
-        'LogisticRegression': dict(estimator=LogisticRegression(max_iter=1000),
+        'LogisticRegression': dict(estimator=LogisticRegression(max_iter=1e6),
                                    param_grid=dict(penalty=['l1', 'l2'],
                                                    C=np.logspace(-3, 3, 7),
                                                    solver=['newton-cg', 'lbfgs', 'liblinear']),
