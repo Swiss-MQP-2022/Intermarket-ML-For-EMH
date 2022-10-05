@@ -56,17 +56,21 @@ if __name__ == '__main__':
     parser.add_option('-p', '--processes',
                       action='store',
                       type='int',
-                      dest='multiprocess',
+                      dest='processes',
                       help='Use multiprocessing when fitting models')
     parser.add_option('-m', '--model',
                       action='store',
                       type='str',
                       dest='model',
                       help='Singular model to train')
+    parser.add_option('-n', '--no-plots',
+                      action='store_false',
+                      dest='plot',
+                      help='Do not build plots if provided')
     options, _ = parser.parse_args()
 
     # n_jobs parameter for GridSearch (must be 1 with multiprocessing)
-    n_jobs = 1 if options.multiprocess is not None else -1
+    n_jobs = 1 if options.processes is not None else -1
 
     # Initialize estimators and parameters to use for experiments
     models = {
@@ -118,8 +122,8 @@ if __name__ == '__main__':
         reports[trainer.name] = mp.Manager().dict()  # Initialize dictionary for reports associated with model
 
         for data in datasets:  # For each dataset
-            if options.multiprocess is not None:  # Use multiprocessing if enabled
-                while len(mp.active_children()) > options.multiprocess:  # Active processes is above process limit
+            if options.processes is not None:  # Use multiprocessing if enabled
+                while len(mp.active_children()) > options.processes:  # Active processes is above process limit
                     sleep(5)  # Sleep before checking again if a job has finished
                 # Create job (process) to fit a single model
                 new_process = mp.Process(target=fit_single_model, args=(trainer, data, reports), daemon=True)
@@ -142,8 +146,9 @@ if __name__ == '__main__':
     # Save metrics to CSVs
     save_metrics(results, model_name=options.model if options.model is not None else '')
 
-    # Generate ROC graphs
-    graph_all_roc(results)
+    if options.plot:
+        # Generate ROC graphs
+        graph_all_roc(results)
 
     # Print classification reports for all model-dataset pairs
     print_classification_reports(results)
