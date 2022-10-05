@@ -14,13 +14,13 @@ from sklearn.metrics import classification_report, roc_curve
 from sklearn.dummy import DummyClassifier
 from sklearn.calibration import CalibratedClassifierCV
 
-from dataset import build_datasets
+from dataset import build_datasets, make_previous_baseline_data, TimeSeriesDataset
 from trainer import ScikitModelTrainer
 from utils import DataSplit, print_classification_reports
 from out_functions import graph_all_roc, save_metrics
 
 
-def fit_single_model(model_trainer, dataset, report_dict):
+def fit_single_model(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDataset, report_dict: dict[str, dict]):
     print(f'Fitting {model_trainer.name} on {dataset.name}{" using GridSearchCV" if model_trainer.use_grid_search else ""}...')
 
     # Train/fit provided model trainer on the provided dataset
@@ -37,9 +37,10 @@ def fit_single_model(model_trainer, dataset, report_dict):
     # Update report dictionary with results
     report_dict[model_trainer.name][dataset.name] = {
         'classification report': {
-            DataSplit.TRAIN: classification_report(dataset.y_train, predicted_y_train, zero_division=0,
-                                                   output_dict=True),
-            DataSplit.TEST: classification_report(dataset.y_test, predicted_y_test, zero_division=0, output_dict=True)
+            DataSplit.TRAIN: classification_report(dataset.y_train, predicted_y_train,
+                                                   zero_division=0, output_dict=True),
+            DataSplit.TEST: classification_report(dataset.y_test, predicted_y_test,
+                                                  zero_division=0, output_dict=True)
         },
         'roc': {
             DataSplit.TRAIN: roc_curve(dataset.y_train, y_train_score[:, -1]),
@@ -48,6 +49,28 @@ def fit_single_model(model_trainer, dataset, report_dict):
     }
 
     print(f'Done fitting {model_trainer.name} on {dataset.name}')
+
+
+def fit_rep_previous_baseline(dataset_list: list[TimeSeriesDataset], report_dict: dict[str, dict]):
+    print('Generating repeat-previous baseline...')
+    previous_baseline_dataset = make_previous_baseline_data(test_size=test_size, replace_zero=replace_zero)
+    report_dict['PreviousBaseline'] = {}
+    for dataset in dataset_list:
+        report_dict['PreviousBaseline'][dataset.name] = {
+            'classification report': {
+                DataSplit.TRAIN: classification_report(previous_baseline_dataset.y_train,
+                                                       previous_baseline_dataset.X_train,
+                                                       zero_division=0, output_dict=True),
+                DataSplit.TEST: classification_report(previous_baseline_dataset.y_test,
+                                                      previous_baseline_dataset.X_test,
+                                                      zero_division=0, output_dict=True)
+            },
+            'roc': {
+                DataSplit.TRAIN: np.nan,
+                DataSplit.TEST: np.nan
+            }
+        }
+    print('Done generating repeat-previous baseline')
 
 
 if __name__ == '__main__':
@@ -65,6 +88,7 @@ if __name__ == '__main__':
                       help='Singular model to train')
     parser.add_option('-n', '--no-plots',
                       action='store_false',
+                      default=True,
                       dest='plot',
                       help='Do not build plots if provided')
     options, _ = parser.parse_args()
@@ -90,7 +114,7 @@ if __name__ == '__main__':
                                     C=[1, 4, 9, 16, 25],
                                     loss=['hinge', 'squared_hinge']),
                     error_score=0),
-        'KNN': dict(estimator=KNN(n_jobs=-1),
+        'KNN': dict(estimator=KNN(n_jobs=n_jobs),
                     param_grid=dict(n_neighbors=[5, 10, 15, 20],
                                     weights=['uniform', 'distance'],
                                     metric=['l1', 'l2', 'cosine'])),
@@ -100,17 +124,21 @@ if __name__ == '__main__':
                                                    solver=['newton-cg', 'lbfgs', 'liblinear']),
                                    error_score=0),
         'PriorBaseline': dict(estimator=DummyClassifier(strategy='prior')),
-        'RandomBaseline': dict(estimator=DummyClassifier(strategy='uniform', random_state=0))
+        'RandomBaseline': dict(estimator=DummyClassifier(strategy='uniform', random_state=0)),
     }
 
     if options.model is not None:
-        models = {model_name: model for model_name, model in models.items() if model_name == options.model}
+        models = {options.model: models[options.model]} if options.model != 'PreviousBaseline' else {}
+
+    test_size = 0.2
+    replace_zero = -1
 
     # Construct datasets to experiment on
     datasets = build_datasets(period=5,
                               brn_features=5,
+                              test_size=test_size,
                               zero_col_thresh=0.25,
-                              replace_zero=-1,
+                              replace_zero=replace_zero,
                               svd_solver='full', n_components=0.95)
 
     pr = []  # List of processes (used for multiprocessing)
@@ -134,6 +162,9 @@ if __name__ == '__main__':
 
     [p.join() for p in pr]  # Wait for all model-fitting jobs to complete
 
+    if options.model is None or options.model == 'PreviousBaseline':
+        fit_rep_previous_baseline(datasets, reports)
+
     # Convert reports into a multi-level dataframe of results
     results = pd.DataFrame.from_dict({(m, d, r): reports[m][d][r]
                                       for m in reports.keys()
@@ -144,11 +175,11 @@ if __name__ == '__main__':
     # Results is a DataFrame with two index levels (model, dataset) and two column levels (report type, data split)
 
     # Save metrics to CSVs
-    save_metrics(results, model_name=options.model if options.model is not None else '')
+    save_metrics(results, model_name=options.model)
 
-    if options.plot:
+    if options.plot and options.model != 'PreviousBaseline':
         # Generate ROC graphs
-        graph_all_roc(results)
+        graph_all_roc(results.drop(index='PreviousBaseline', errors='ignore'))
 
     # Print classification reports for all model-dataset pairs
     print_classification_reports(results)

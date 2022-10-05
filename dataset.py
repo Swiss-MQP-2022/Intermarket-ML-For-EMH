@@ -18,7 +18,7 @@ from constants import DataDict, AssetID, DATASET_SYMBOLS, DUMMY_SCALER
 
 class TimeSeriesDataset:
     def __init__(self, X, y,
-                 period=100,
+                 period=5,
                  test_size=0.2,
                  scaler: Scaler = DUMMY_SCALER,
                  fit=True,
@@ -58,6 +58,9 @@ class TimeSeriesDataset:
         if isinstance(X, (pd.DataFrame, pd.Series)):  # no scaler is provided. Convert to numpy if DataFrame or Series
             X = X.to_numpy()
 
+        if X.ndim == 1:
+            X = np.expand_dims(X, axis=1)
+
         features = X.shape[1]  # get the number of features
 
         # https://stackoverflow.com/questions/43185589/sliding-windows-from-2d-array-that-slides-along-axis-0-or-rows-to-give-a-3d-arra
@@ -94,11 +97,12 @@ class MultiAssetDataset(TimeSeriesDataset):
         super().__init__(X, y, **kwargs)
 
 
-def build_datasets(period=5, brn_features=5, zero_col_thresh=1, replace_zero=None, **pca_kwargs) -> list[TimeSeriesDataset]:
+def build_datasets(period=5, brn_features=5, test_size=0.2, zero_col_thresh=1, replace_zero=None, **pca_kwargs) -> list[TimeSeriesDataset]:
     """
     Builds the full suite of datasets for experimentation
     :param period: period for sliding windows
     :param brn_features: number of features to generate for brownian motion datasets
+    :param test_size: proportion of dataset to use in the testing set
     :param zero_col_thresh: proportion of a column that must be zero to drop it (passed to make_percent_dict)
     :param replace_zero: value to replace zeros in y_base with. No replacement if None (default)
     :param pca_kwargs: arbitrary keyword arguments to pass to the PCA initializer
@@ -137,13 +141,14 @@ def build_datasets(period=5, brn_features=5, zero_col_thresh=1, replace_zero=Non
     }
 
     datasets = [
-        TimeSeriesDataset(brn_X, y_base, period=period, scaler=StandardScaler(), name='Brownian Motion'),
-        TimeSeriesDataset(norm_X, y_base, period=period, scaler=StandardScaler(), name='Normal Sample'),
+        TimeSeriesDataset(brn_X, y_base, period=period, test_size=test_size, scaler=StandardScaler(), name='Brownian Motion'),
+        TimeSeriesDataset(norm_X, y_base, period=period, test_size=test_size, scaler=StandardScaler(), name='Normal Sample'),
     ]
 
     datasets.extend([
         TimeSeriesDataset(X, y,
                           period=period,
+                          test_size=test_size,
                           scaler=scaler,
                           name=f'{data_name} {scaler_name}'.rstrip(),
                           clone_scaler=True)
@@ -165,7 +170,20 @@ def build_datasets(period=5, brn_features=5, zero_col_thresh=1, replace_zero=Non
 
                 # generate and append new MultiAssetDataset to dataset list
                 datasets.append(MultiAssetDataset([('stock', 'SPY.US')] + symbol_list[0], data, y_base,
-                                                  name=f'{symbol_list[1]} {postfix}', period=period, scaler=scaler,
-                                                  clone_scaler=True))
+                                                  name=f'{symbol_list[1]} {postfix}', period=period,
+                                                  test_size=test_size, scaler=scaler, clone_scaler=True))
 
     return datasets
+
+
+def make_previous_baseline_data(test_size=0.2, replace_zero=None):
+    y_base = pd.read_csv('./data/stock/SPY.US.csv', index_col='date')['close']
+    y_base = utils.make_percent_series(y_base).apply(np.sign)
+    if replace_zero is not None:  # replace zeros if desired
+        y_base = y_base.replace(0, replace_zero)  # replace 0s with -1 so classification is binary
+
+    y_target = y_base.apply(np.sign).shift(-1).iloc[:-1]
+    X, y = utils.align_data(y_base, y_target)
+
+    return TimeSeriesDataset(X, y, period=1, test_size=test_size, name='PreviousY')
+
