@@ -174,16 +174,3 @@ def build_datasets(period=5, brn_features=5, test_size=0.2, zero_col_thresh=1, r
                                                   test_size=test_size, scaler=scaler, clone_scaler=True))
 
     return datasets
-
-
-def make_previous_baseline_data(test_size=0.2, replace_zero=None):
-    y_base = pd.read_csv('./data/stock/SPY.US.csv', index_col='date')['close']
-    y_base = utils.make_percent_series(y_base).apply(np.sign)
-    if replace_zero is not None:  # replace zeros if desired
-        y_base = y_base.replace(0, replace_zero)  # replace 0s with -1 so classification is binary
-
-    y_target = y_base.apply(np.sign).shift(-1).iloc[:-1]
-    X, y = utils.align_data(y_base, y_target)
-
-    return TimeSeriesDataset(X, y, period=1, test_size=test_size, name='PreviousY')
-

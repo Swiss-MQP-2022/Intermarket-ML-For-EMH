@@ -14,9 +14,9 @@ from sklearn.metrics import classification_report, roc_curve
 from sklearn.dummy import DummyClassifier
 from sklearn.calibration import CalibratedClassifierCV
 
-from dataset import build_datasets, make_previous_baseline_data, TimeSeriesDataset
+from dataset import build_datasets, TimeSeriesDataset
 from trainer import ScikitModelTrainer
-from utils import DataSplit, print_classification_reports
+from utils import DataSplit, print_classification_reports, align_data
 from out_functions import graph_all_roc, save_metrics
 
 
@@ -53,16 +53,14 @@ def fit_single_model(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDatas
 
 def fit_rep_previous_baseline(dataset_list: list[TimeSeriesDataset], report_dict: dict[str, dict]):
     print('Generating repeat-previous baseline...')
-    previous_baseline_dataset = make_previous_baseline_data(test_size=test_size, replace_zero=replace_zero)
+
     report_dict['PreviousBaseline'] = {}
     for dataset in dataset_list:
         report_dict['PreviousBaseline'][dataset.name] = {
             'classification report': {
-                DataSplit.TRAIN: classification_report(previous_baseline_dataset.y_train,
-                                                       previous_baseline_dataset.X_train,
+                DataSplit.TRAIN: classification_report(*align_data(dataset.y.shift(1).iloc[1:], dataset.y_train),
                                                        zero_division=0, output_dict=True),
-                DataSplit.TEST: classification_report(previous_baseline_dataset.y_test,
-                                                      previous_baseline_dataset.X_test,
+                DataSplit.TEST: classification_report(*align_data(dataset.y.shift(1).iloc[1:], dataset.y_test),
                                                       zero_division=0, output_dict=True)
             },
             'roc': {
