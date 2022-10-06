@@ -28,7 +28,9 @@ def fit_single_model(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDatas
     :param dataset: dataset to fit to
     :param report_dict: dictionary to save results to
     """
-    print(f'Fitting {model_trainer.name} on {dataset.name}{" using GridSearchCV" if model_trainer.use_grid_search else ""} (PID {os.getpid()})...')
+    print(f'Fitting {model_trainer.name} on {dataset.name}'
+          f'{" using GridSearchCV" if model_trainer.use_grid_search else ""}'
+          f' (PID {os.getpid()})...')
 
     # Train/fit provided model trainer on the provided dataset
     clf = model_trainer.train(dataset.X_train, dataset.y_train)
