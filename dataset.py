@@ -58,8 +58,8 @@ class TimeSeriesDataset:
         if isinstance(X, (pd.DataFrame, pd.Series)):  # no scaler is provided. Convert to numpy if DataFrame or Series
             X = X.to_numpy()
 
-        if X.ndim == 1:
-            X = np.expand_dims(X, axis=1)
+        if X.ndim == 1:  # if passed a 1D array for X (occurs if X is a series)
+            X = np.expand_dims(X, axis=1)  # add an extra dimension (required for sliding window)
 
         features = X.shape[1]  # get the number of features
 
