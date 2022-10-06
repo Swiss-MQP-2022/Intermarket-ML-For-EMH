@@ -1,14 +1,12 @@
 from enum import Enum
 from pathlib import Path
-from typing import Union, TypeVar, Callable, Protocol
+from typing import Union, TypeVar, Callable, Protocol, Literal
 import re
 
 import pandas as pd
 import numpy as np
 from numpy import fft
 from scipy import stats
-
-from sklearn.decomposition import PCA
 
 from constants import DATASET_SYMBOLS, DataDict, AssetID
 
@@ -322,3 +320,15 @@ def inverse_fourier(data):
     data = np.ascontiguousarray(data).view(np.complex128)
     data = fft.ifft(data, axis=0).real
     return data
+
+
+def compute_consensus(data: pd.Series, period: int) -> pd.Series:
+    """
+    Compute the moving consensus (mode) of a series
+    :param data: series to compute consensuses on
+    :param period: period of moving window
+    :return: moving consensus
+    """
+    windowed = data.rolling(period)
+    consensus = windowed.apply(lambda x: stats.mode(x, keepdims=False)[0])
+    return consensus.iloc[period-1:]

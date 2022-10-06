@@ -1,5 +1,6 @@
 from itertools import filterfalse
 from math import floor
+from typing import Union
 
 import numpy as np
 from numpy.lib import stride_tricks
@@ -17,7 +18,9 @@ from constants import DataDict, AssetID, DATASET_SYMBOLS, DUMMY_SCALER
 
 
 class TimeSeriesDataset:
-    def __init__(self, X, y,
+    def __init__(self,
+                 X: Union[np.ndarray, pd.DataFrame, pd.Series],
+                 y: Union[np.ndarray, pd.DataFrame, pd.Series],
                  period=5,
                  test_size=0.2,
                  scaler: Scaler = DUMMY_SCALER,
@@ -37,16 +40,9 @@ class TimeSeriesDataset:
         :param clone_scaler: whether to clone the scaler provided (prevents aliasing when building datasets in loops)
         """
         self.name = name  # set the dataset name
-        # set the data index
-        if isinstance(y, (pd.DataFrame, pd.Series)):
-            self.index = y.index  # This may be useful for aligning time series plots
-
-        # if desired, clone scaler to prevent aliasing (useful for building datasets with loops or list comprehensions)
-        if clone_scaler:
-            scaler = clone(scaler)
-
-        self.scaler = scaler  # set the scaler for the dataset
-        self.y = y[period - 1:]  # drop unusable values for y and set y
+        self.scaler = clone(scaler) if clone_scaler else scaler  # set the scaler for the dataset
+        self.period = period
+        self.y = y[self.period - 1:]  # drop unusable values for y and set y
 
         # get the indices of end of the training set / start of the testing set
         train_end = test_start = floor(len(X) * (1 - test_size))
@@ -55,22 +51,22 @@ class TimeSeriesDataset:
             self.scaler.fit(X[:train_end])  # fit the scaler to the training data
         X = self.scaler.transform(X)  # scale the data
 
-        if isinstance(X, (pd.DataFrame, pd.Series)):  # no scaler is provided. Convert to numpy if DataFrame or Series
+        if isinstance(X, (pd.DataFrame, pd.Series)):  # Convert to numpy if DataFrame or Series
             X = X.to_numpy()
 
         if X.ndim == 1:  # if passed a 1D array for X (occurs if X is a series)
             X = np.expand_dims(X, axis=1)  # add an extra dimension (required for sliding window)
 
-        features = X.shape[1]  # get the number of features
+        self.features = X.shape[1]  # get the number of features
 
         # https://stackoverflow.com/questions/43185589/sliding-windows-from-2d-array-that-slides-along-axis-0-or-rows-to-give-a-3d-arra
         # Generate sliding windows
-        nd0 = X.shape[0] - period + 1
+        nd0 = X.shape[0] - self.period + 1
         s0, s1 = X.strides
-        self.X = stride_tricks.as_strided(X, shape=(nd0, period, features), strides=(s0, s0, s1))
+        self.X = stride_tricks.as_strided(X, shape=(nd0, self.period, self.features), strides=(s0, s0, s1))
 
         if flatten:  # flatten the sliding windows
-            self.X = self.X.reshape(-1, period * features)
+            self.X = self.X.reshape(-1, self.period * self.features)
 
         # set training and testing subsets
         self.X_train = self.X[:train_end]
@@ -97,7 +93,12 @@ class MultiAssetDataset(TimeSeriesDataset):
         super().__init__(X, y, **kwargs)
 
 
-def build_datasets(period=5, brn_features=5, test_size=0.2, zero_col_thresh=1, replace_zero=None, **pca_kwargs) -> list[TimeSeriesDataset]:
+def build_datasets(period=5,
+                   brn_features=5,
+                   test_size=0.2,
+                   zero_col_thresh=1,
+                   replace_zero=None,
+                   **pca_kwargs) -> list[TimeSeriesDataset]:
     """
     Builds the full suite of datasets for experimentation
     :param period: period for sliding windows
@@ -141,8 +142,12 @@ def build_datasets(period=5, brn_features=5, test_size=0.2, zero_col_thresh=1, r
     }
 
     datasets = [
-        TimeSeriesDataset(brn_X, y_base, period=period, test_size=test_size, scaler=StandardScaler(), name='Brownian Motion'),
-        TimeSeriesDataset(norm_X, y_base, period=period, test_size=test_size, scaler=StandardScaler(), name='Normal Sample'),
+        TimeSeriesDataset(brn_X, y_base, period=period,
+                          test_size=test_size, scaler=StandardScaler(),
+                          name='Brownian Motion'),
+        TimeSeriesDataset(norm_X, y_base, period=period,
+                          test_size=test_size, scaler=StandardScaler(),
+                          name='Normal Sample'),
     ]
 
     datasets.extend([

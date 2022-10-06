@@ -17,8 +17,9 @@ from sklearn.calibration import CalibratedClassifierCV
 
 from dataset import build_datasets, TimeSeriesDataset
 from trainer import ScikitModelTrainer
-from utils import DataSplit, print_classification_reports, align_data
+from utils import DataSplit, print_classification_reports, align_data, compute_consensus
 from out_functions import graph_all_roc, save_metrics
+from constants import ConsensusBaseline, CONSENSUS_BASELINES
 
 
 def fit_single_model(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDataset, report_dict: dict[str, dict]):
@@ -62,21 +63,28 @@ def fit_single_model(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDatas
     print(f'Done fitting {model_trainer.name} on {dataset.name} (PID {os.getpid()})')
 
 
-def fit_rep_previous_baseline(dataset_list: list[TimeSeriesDataset], report_dict: dict[str, dict]):
+def fit_consensus_baseline(dataset_list: list[TimeSeriesDataset], report_dict: dict[str, dict], baseline: ConsensusBaseline):
     """
-    Fit and record results for the Repeat-Previous Baseline
+    Fit and record results for the Consensus Baseline (Previous Baseline is period=1)
     :param dataset_list: list of datasets to fit on
     :param report_dict: dictionary to save reports to
+    :param baseline: desired baseline
     """
-    print('Generating repeat-previous baseline...')
+    print(f'Generating {baseline}...')
 
-    report_dict['PreviousBaseline'] = {}
+    report_dict[baseline] = {}
     for dataset in dataset_list:
-        report_dict['PreviousBaseline'][dataset.name] = {
+        # set period based on desired baseline (Consensus uses existing dataset's period, Previous uses 1)
+        period = dataset.period if baseline == 'ConsensusBaseline' else 1
+        # generate consensus predictions
+        train_consensus = compute_consensus(dataset.y_train.shift(1).iloc[1:], period)
+        test_consensus = compute_consensus(dataset.y_test.shift(1).iloc[1:], period)
+
+        report_dict[baseline][dataset.name] = {
             'classification report': {
-                DataSplit.TRAIN: classification_report(*align_data(dataset.y.shift(1).iloc[1:], dataset.y_train),
+                DataSplit.TRAIN: classification_report(*align_data(train_consensus, dataset.y_train),
                                                        zero_division=0, output_dict=True),
-                DataSplit.TEST: classification_report(*align_data(dataset.y.shift(1).iloc[1:], dataset.y_test),
+                DataSplit.TEST: classification_report(*align_data(test_consensus, dataset.y_test),
                                                       zero_division=0, output_dict=True)
             },
             'roc': {
@@ -85,7 +93,7 @@ def fit_rep_previous_baseline(dataset_list: list[TimeSeriesDataset], report_dict
             }
         }
 
-    print('Done generating repeat-previous baseline')
+    print(f'Done generating {baseline}')
 
 
 def start_training_process(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDataset):
@@ -160,8 +168,12 @@ if __name__ == '__main__':
         'RandomBaseline': dict(estimator=DummyClassifier(strategy='uniform', random_state=0)),
     }
 
+    # Specific model selected
     if options.model is not None:
-        models = {options.model: models[options.model]} if options.model != 'PreviousBaseline' else {}
+        if options.model in CONSENSUS_BASELINES:  # selected model requires manual calculation
+            models = {}
+        else:  # desired model can use automatic fitting
+            models = {options.model: models[options.model]}
 
     test_size = 0.2
     replace_zero = -1
@@ -193,9 +205,12 @@ if __name__ == '__main__':
         print(f'Closing process {p.pid}')
         p.close()  # release resources
 
-    # Repeat-previous baseline
-    if options.model is None or options.model == 'PreviousBaseline':
-        fit_rep_previous_baseline(datasets, reports)
+    # Consensus baselines
+    if options.model is None:  # no model selected
+        for baseline in CONSENSUS_BASELINES:  # fit all consensus baselines
+            fit_consensus_baseline(datasets, reports, baseline)
+    elif options.model in CONSENSUS_BASELINES:  # consensus baseline selected as model
+        fit_consensus_baseline(datasets, reports, options.model)  # fit desired baseline
 
     # Convert reports into a multi-level dataframe of results
     results = pd.DataFrame.from_dict({(m, d, r): reports[m][d][r]
@@ -209,9 +224,9 @@ if __name__ == '__main__':
     # Save metrics to CSVs
     save_metrics(results, model_name=options.model)
 
-    if options.plot and options.model != 'PreviousBaseline':
+    if options.plot and options.model not in CONSENSUS_BASELINES:
         # Generate ROC graphs
-        graph_all_roc(results.drop(index='PreviousBaseline', errors='ignore'))
+        graph_all_roc(results.drop(index=CONSENSUS_BASELINES, errors='ignore'))
 
     # Print classification reports for all model-dataset pairs
     print_classification_reports(results)
