@@ -10,7 +10,7 @@ from tqdm import tqdm
 from utils import make_filename_safe, DataSplit
 from constants import METRICS
 
-matplotlib.use('TkAgg')
+# matplotlib.use('TkAgg')  # This is required for graph_roc to work on certain systems. Uncomment if required.
 
 
 def graph_roc(title, roc_list, legend_labels, plot_dir):
