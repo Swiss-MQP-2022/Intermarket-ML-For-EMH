@@ -156,21 +156,21 @@ def build_datasets(period=5, brn_features=5, test_size=0.2, zero_col_thresh=1, r
         for scaler_name, scaler in scalers.items()
     ])
 
-    # MULTI-ASSET DATASET GENERATION
-    # Generate powerset of desired available asset_types
-    asset_powerset = filterfalse(lambda x: x == (), powerset(DATASET_SYMBOLS.keys()))
-
-    for asset_set in asset_powerset:  # for each set of assets in the powerset of asset types
-        symbol_list = utils.generate_symbol_list(asset_set)  # get list of symbols for those assets
-
-        for percent in [False, True]:  # raw data vs. percent-change
-            data = percent_data if percent else raw_data  # set desired dataset
-            for scaler_name, scaler in scalers.items():  # Select desired scaler
-                postfix = f'{"%" if percent else "Raw"} {scaler_name}'.rstrip()  # dataset name postfix
-
-                # generate and append new MultiAssetDataset to dataset list
-                datasets.append(MultiAssetDataset([('stock', 'SPY.US')] + symbol_list[0], data, y_base,
-                                                  name=f'{symbol_list[1]} {postfix}', period=period,
-                                                  test_size=test_size, scaler=scaler, clone_scaler=True))
+    # # MULTI-ASSET DATASET GENERATION
+    # # Generate powerset of desired available asset_types
+    # asset_powerset = filterfalse(lambda x: x == (), powerset(DATASET_SYMBOLS.keys()))
+    #
+    # for asset_set in asset_powerset:  # for each set of assets in the powerset of asset types
+    #     symbol_list = utils.generate_symbol_list(asset_set)  # get list of symbols for those assets
+    #
+    #     for percent in [False, True]:  # raw data vs. percent-change
+    #         data = percent_data if percent else raw_data  # set desired dataset
+    #         for scaler_name, scaler in scalers.items():  # Select desired scaler
+    #             postfix = f'{"%" if percent else "Raw"} {scaler_name}'.rstrip()  # dataset name postfix
+    #
+    #             # generate and append new MultiAssetDataset to dataset list
+    #             datasets.append(MultiAssetDataset([('stock', 'SPY.US')] + symbol_list[0], data, y_base,
+    #                                               name=f'{symbol_list[1]} {postfix}', period=period,
+    #                                               test_size=test_size, scaler=scaler, clone_scaler=True))
 
     return datasets
