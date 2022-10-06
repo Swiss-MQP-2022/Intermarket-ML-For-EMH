@@ -1,28 +1,42 @@
 from optparse import OptionParser
 import multiprocessing as mp
 from time import sleep
+import os
 
 import numpy as np
 import pandas as pd
 
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import LinearSVC
 from sklearn.neighbors import KNeighborsClassifier as KNN
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, roc_curve
 from sklearn.dummy import DummyClassifier
+from sklearn.calibration import CalibratedClassifierCV
 
-from dataset import build_datasets
+from dataset import build_datasets, TimeSeriesDataset
 from trainer import ScikitModelTrainer
-from utils import DataSplit, print_classification_reports
+from utils import DataSplit, print_classification_reports, align_data
 from out_functions import graph_all_roc, save_metrics
 
 
-def fit_single_model(model_trainer, dataset, report_dict):
-    print(f'Fitting {model_trainer.name} on {dataset.name}{" using GridSearchCV" if model_trainer.use_grid_search else ""}...')
+def fit_single_model(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDataset, report_dict: dict[str, dict]):
+    """
+    Fit a single model on the provided dataset and report results
+    :param model_trainer: model-trainer to fit
+    :param dataset: dataset to fit to
+    :param report_dict: dictionary to save results to
+    """
+    print(f'Fitting {model_trainer.name} on {dataset.name}{" using GridSearchCV" if model_trainer.use_grid_search else ""} (PID {os.getpid()})...')
 
     # Train/fit provided model trainer on the provided dataset
     clf = model_trainer.train(dataset.X_train, dataset.y_train)
+
+    # https://stackoverflow.com/questions/26478000/converting-linearsvcs-decision-function-to-probabilities-scikit-learn-python
+    if model_trainer.name == 'SVC':  # Workaround for LinearSVC not implementing predict_proba
+        clf = CalibratedClassifierCV(clf, cv='prefit')
+        clf.fit(dataset.X_train, dataset.y_train)
 
     predicted_y_train = clf.predict(dataset.X_train)  # Get prediction of fitted model on training set (in-sample)
     predicted_y_test = clf.predict(dataset.X_test)  # Get prediction of fitted model on test set (out-sample)
@@ -32,9 +46,10 @@ def fit_single_model(model_trainer, dataset, report_dict):
     # Update report dictionary with results
     report_dict[model_trainer.name][dataset.name] = {
         'classification report': {
-            DataSplit.TRAIN: classification_report(dataset.y_train, predicted_y_train, zero_division=0,
-                                                   output_dict=True),
-            DataSplit.TEST: classification_report(dataset.y_test, predicted_y_test, zero_division=0, output_dict=True)
+            DataSplit.TRAIN: classification_report(dataset.y_train, predicted_y_train,
+                                                   zero_division=0, output_dict=True),
+            DataSplit.TEST: classification_report(dataset.y_test, predicted_y_test,
+                                                  zero_division=0, output_dict=True)
         },
         'roc': {
             DataSplit.TRAIN: roc_curve(dataset.y_train, y_train_score[:, -1]),
@@ -42,75 +57,143 @@ def fit_single_model(model_trainer, dataset, report_dict):
         }
     }
 
-    print(f'Done fitting {model_trainer.name} on {dataset.name}')
+    print(f'Done fitting {model_trainer.name} on {dataset.name} (PID {os.getpid()})')
+
+
+def fit_rep_previous_baseline(dataset_list: list[TimeSeriesDataset], report_dict: dict[str, dict]):
+    """
+    Fit and record results for the Repeat-Previous Baseline
+    :param dataset_list: list of datasets to fit on
+    :param report_dict: dictionary to save reports to
+    """
+    print('Generating repeat-previous baseline...')
+
+    report_dict['PreviousBaseline'] = {}
+    for dataset in dataset_list:
+        report_dict['PreviousBaseline'][dataset.name] = {
+            'classification report': {
+                DataSplit.TRAIN: classification_report(*align_data(dataset.y.shift(1).iloc[1:], dataset.y_train),
+                                                       zero_division=0, output_dict=True),
+                DataSplit.TEST: classification_report(*align_data(dataset.y.shift(1).iloc[1:], dataset.y_test),
+                                                      zero_division=0, output_dict=True)
+            },
+            'roc': {
+                DataSplit.TRAIN: np.nan,
+                DataSplit.TEST: np.nan
+            }
+        }
+
+    print('Done generating repeat-previous baseline')
+
+
+def start_training_process(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDataset):
+    global process_list, reports
+
+    while len(mp.active_children()) > options.processes:  # Active processes is above process limit
+        sleep(5)  # Sleep before checking again if a job has finished
+
+    for process in process_list:  # for each process
+        if not process.is_alive():  # if process finished
+            print(f'Closing process {process.pid}')
+            process.close()  # release resources
+            process_list.remove(process)  # remove process from process list
+
+    # Create process to fit a single model
+    new_process = mp.Process(target=fit_single_model, args=(model_trainer, dataset, reports), daemon=True)
+    process_list.append(new_process)  # add process to process list
+    new_process.start()  # start process
 
 
 if __name__ == '__main__':
     # Initialize option parser for optional multiprocessing parameter
     parser = OptionParser()
-    parser.add_option('-m', '--multiprocess',
+    parser.add_option('-p', '--processes',
                       action='store',
                       type='int',
-                      dest='multiprocess',
+                      dest='processes',
                       help='Use multiprocessing when fitting models')
+    parser.add_option('-m', '--model',
+                      action='store',
+                      type='str',
+                      dest='model',
+                      help='Singular model to train')
+    parser.add_option('-n', '--no-plots',
+                      action='store_false',
+                      default=True,
+                      dest='plot',
+                      help='Do not build plots if provided')
     options, _ = parser.parse_args()
 
-    # Initialize estimators and parameters to use for experiments
-    models = [
-        dict(estimator=DecisionTreeClassifier(),
-             param_grid=dict(splitter=['best', 'random'],
-                             max_depth=[5, 10, 25, None],
-                             min_samples_split=[2, 5, 10, 50],
-                             min_samples_leaf=[1, 5, 10])),
-        dict(estimator=SVC(probability=True),
-             param_grid=dict(kernel=['linear', 'poly', 'rbf', 'sigmoid'],
-                             shrinking=[True, False],
-                             probability=[True, False],
-                             C=[1, 4, 9, 16, 25])),
-        dict(estimator=KNN(n_jobs=-1),
-             param_grid=dict(n_neighbors=[5, 10, 15, 20],
-                             weights=['uniform', 'distance'],
-                             metric=['l1', 'l2', 'cosine'])),
-        dict(estimator=LogisticRegression(max_iter=1000),
-             param_grid=dict(penalty=['l1', 'l2'],
-                             C=np.logspace(-3, 3, 7),
-                             solver=['newton-cg', 'lbfgs', 'liblinear']),
-             error_score=0),
-        dict(estimator=DummyClassifier(strategy='prior'),
-             name='PriorBaseline'),
-        dict(estimator=DummyClassifier(strategy='uniform', random_state=0),
-             name='RandomBaseline')
-    ]
+    # n_jobs parameter for GridSearch (must be 1 with multiprocessing)
+    n_jobs = 1 if options.processes is not None else -1
 
-    n_jobs = 1 if options.multiprocess is not None else -1  # n_jobs parameter for GridSearch (must be 1 with multiprocessing)
+    # Initialize estimators and parameters to use for experiments
+    models = {
+        'DecisionTree': dict(estimator=DecisionTreeClassifier(),
+                             param_grid=dict(splitter=['best', 'random'],
+                                             max_depth=[5, 10, 25, None],
+                                             min_samples_split=[2, 5, 10, 50],
+                                             min_samples_leaf=[1, 5, 10])),
+        'RandomForest': dict(estimator=RandomForestClassifier(n_jobs=n_jobs),
+                             param_grid=dict(n_estimators=[50, 100, 500],
+                                             criterion=['gini', 'entropy'],
+                                             max_depth=[5, 10, 25, None],
+                                             min_samples_split=[2, 5, 10, 50],
+                                             min_samples_leaf=[1, 5, 10])),
+        'SVC': dict(estimator=LinearSVC(max_iter=1e6),
+                    param_grid=dict(penalty=['l1', 'l2'],
+                                    C=[1, 4, 9, 16, 25],
+                                    loss=['hinge', 'squared_hinge']),
+                    error_score=0),
+        'KNN': dict(estimator=KNN(n_jobs=n_jobs),
+                    param_grid=dict(n_neighbors=[5, 10, 15, 20],
+                                    weights=['uniform', 'distance'],
+                                    metric=['l1', 'l2', 'cosine'])),
+        'LogisticRegression': dict(estimator=LogisticRegression(max_iter=1e4),
+                                   param_grid=dict(penalty=['l1', 'l2'],
+                                                   C=np.logspace(-3, 3, 7),
+                                                   solver=['newton-cg', 'lbfgs', 'liblinear']),
+                                   error_score=0),
+        'PriorBaseline': dict(estimator=DummyClassifier(strategy='prior')),
+        'RandomBaseline': dict(estimator=DummyClassifier(strategy='uniform', random_state=0)),
+    }
+
+    if options.model is not None:
+        models = {options.model: models[options.model]} if options.model != 'PreviousBaseline' else {}
+
+    test_size = 0.2
+    replace_zero = -1
 
     # Construct datasets to experiment on
     datasets = build_datasets(period=5,
                               brn_features=5,
+                              test_size=test_size,
                               zero_col_thresh=0.25,
-                              replace_zero=-1,
+                              replace_zero=replace_zero,
                               svd_solver='full', n_components=0.95)
 
-    pr = []  # List of processes (used for multiprocessing)
+    process_list = []  # List of processes (used for multiprocessing)
     reports = {}  # Dictionary which stores result data from experiments
 
     # Model experimentation
-    for model in models:  # For each model
-        trainer = ScikitModelTrainer(**model, n_jobs=n_jobs)  # Initialize a trainer for the model
+    for model_name, model in models.items():  # For each model
+        trainer = ScikitModelTrainer(**model, n_jobs=n_jobs, name=model_name)  # Initialize a trainer for the model
         reports[trainer.name] = mp.Manager().dict()  # Initialize dictionary for reports associated with model
 
         for data in datasets:  # For each dataset
-            if options.multiprocess is not None:  # Use multiprocessing if enabled
-                while len(mp.active_children()) > options.multiprocess:  # Active processes is above process limit
-                    sleep(5)  # Sleep before checking again if a job has finished
-                # Create job (process) to fit a single model
-                new_process = mp.Process(target=fit_single_model, args=(trainer, data, reports), daemon=True)
-                pr.append(new_process)
-                new_process.start()  # Start job
+            if options.processes is not None:  # Use multiprocessing if enabled
+                start_training_process(trainer, data)
             else:  # Do not use multiprocessing
                 fit_single_model(trainer, data, reports)  # Fit a single model in the current process
 
-    [p.join() for p in pr]  # Wait for all model-fitting jobs to complete
+    for p in process_list:  # for each remaining process
+        p.join()  # wait for process to finish
+        print(f'Closing process {p.pid}')
+        p.close()  # release resources
+
+    # Repeat-previous baseline
+    if options.model is None or options.model == 'PreviousBaseline':
+        fit_rep_previous_baseline(datasets, reports)
 
     # Convert reports into a multi-level dataframe of results
     results = pd.DataFrame.from_dict({(m, d, r): reports[m][d][r]
@@ -122,10 +205,11 @@ if __name__ == '__main__':
     # Results is a DataFrame with two index levels (model, dataset) and two column levels (report type, data split)
 
     # Save metrics to CSVs
-    save_metrics(results)
+    save_metrics(results, model_name=options.model)
 
-    # Generate ROC graphs
-    graph_all_roc(results)
+    if options.plot and options.model != 'PreviousBaseline':
+        # Generate ROC graphs
+        graph_all_roc(results.drop(index='PreviousBaseline', errors='ignore'))
 
     # Print classification reports for all model-dataset pairs
     print_classification_reports(results)

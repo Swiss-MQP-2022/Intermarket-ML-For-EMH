@@ -53,7 +53,7 @@ def graph_all_roc(data, plot_dir=r'./out/plots'):
     """
     print('Generating ROC graphs...')
 
-    Path(plot_dir).mkdir(parents=True, exist_ok=True)  # create plots directory if doesn't exist
+    Path(plot_dir).mkdir(parents=True, exist_ok=True)  # create plots directory if it doesn't exist
 
     # Generate ROC w.r.t. model plots
     for model_name, model in tqdm(data['roc', DataSplit.TRAIN].groupby(level=0)):
@@ -63,19 +63,22 @@ def graph_all_roc(data, plot_dir=r'./out/plots'):
         graph_roc(f'dataset: {data_name}', dataset.to_numpy(), dataset.index.get_level_values(0).tolist(), plot_dir)
 
 
-def save_metrics(data: pd.DataFrame, out_dir=r'./out'):
+def save_metrics(data: pd.DataFrame, model_name=None, out_dir=r'./out'):
     """
     Generate CSVs of desired metrics
     :param data: dataframe containing metric data
+    :param model_name: name of model (prefix for filename)
     :param out_dir: directory to save CSVs
     """
     print('Saving metrics...')
 
-    Path(out_dir).mkdir(parents=True, exist_ok=True)  # create plots directory if doesn't exist
+    Path(out_dir).mkdir(parents=True, exist_ok=True)  # create plots directory if it doesn't exist
+
+    model_name = model_name + '_' if model_name is not None else ''
 
     # Save metrics to csv
     metric_reports = data['classification report'].unstack(level=0).swaplevel(0, 1, axis=1)
     for metric_name, metric in METRICS.items():
         metric_data = metric_reports.applymap(
             lambda x: x[metric[0]][metric[1]] if isinstance(metric, tuple) else x[metric])
-        metric_data.to_csv(rf'./out/{make_filename_safe(metric_name)}.csv')
+        metric_data.to_csv(rf'./out/{make_filename_safe(f"{model_name}{metric_name}")}.csv')
