@@ -1,8 +1,13 @@
+from typing import Literal, get_args
+
 import pandas as pd
 from sklearn.preprocessing import FunctionTransformer
 
 DataDict = dict[str, dict[str, pd.DataFrame]]
 AssetID = tuple[str, str]
+ConsensusBaseline = Literal['PreviousBaseline', 'ConsensusBaseline']
+
+CONSENSUS_BASELINES: list[ConsensusBaseline] = list(get_args(ConsensusBaseline))
 
 DATASET_SYMBOLS = {
     'forex': [('forex', 'USDGBP.FOREX'),
