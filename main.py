@@ -98,12 +98,12 @@ def fit_consensus_baseline(dataset_list: list[TimeSeriesDataset], report_dict: d
     print(f'Done generating {baseline}')
 
 
-def wait_for_processes(max_processes: int, polling_rate: int):
+def wait_for_processes(wait_threshold: int, polling_rate: int):
     """
     Wait until the number of outstanding processes is below a specified amount
     NOTE: closes any processes that terminate and removes them from process_list
     NOTE: WILL ALWAYS CHECK FOR AND CLOSE ANY DEAD PROCESSES AT LEAST ONCE
-    :param max_processes: maximum acceptable number of processes to allow without waiting
+    :param wait_threshold: minimum number of processes require waiting
     :param polling_rate: rate (in seconds) to poll if any processes terminated
     """
     global process_list
@@ -116,7 +116,7 @@ def wait_for_processes(max_processes: int, polling_rate: int):
                 process.close()  # release resources
                 process_list.remove(process)  # remove process from process list
 
-        wait = len(process_list) >= max_processes  # update wait flag based on number of active processes
+        wait = len(process_list) >= wait_threshold  # update wait flag based on number of active processes
         if wait:  # sleep if we still need to wait
             sleep(polling_rate)
 
