@@ -1,7 +1,7 @@
 from optparse import OptionParser
 import multiprocessing as mp
-from time import sleep
 import os
+from time import sleep
 
 import numpy as np
 import pandas as pd
@@ -20,6 +20,8 @@ from trainer import ScikitModelTrainer
 from utils import DataSplit, print_classification_reports, align_data, compute_consensus
 from out_functions import graph_all_roc, save_metrics
 from constants import ConsensusBaseline, CONSENSUS_BASELINES
+
+POLLING_RATE = 30  # Rate in seconds to poll changes in process status
 
 
 def fit_single_model(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDataset, report_dict: dict[str, dict]):
@@ -96,17 +98,37 @@ def fit_consensus_baseline(dataset_list: list[TimeSeriesDataset], report_dict: d
     print(f'Done generating {baseline}')
 
 
-def start_training_process(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDataset):
+def wait_for_processes(max_processes: int, polling_rate: int):
+    """
+    Wait until the number of outstanding processes is below a specified amount
+    NOTE: closes any processes that terminate and removes them from process_list
+    NOTE: WILL ALWAYS CHECK FOR AND CLOSE ANY DEAD PROCESSES AT LEAST ONCE
+    :param max_processes: maximum acceptable number of processes to allow without waiting
+    :param polling_rate: rate (in seconds) to poll if any processes terminated
+    """
+    global process_list
+
+    wait = True  # flag to continue waiting. Used to emulate a do-while loop
+    while wait:  # While we need to wait for processes to finish
+        for process in process_list:  # for each remaining process
+            if not process.is_alive():  # if process finished
+                print(f'Closing process {process.pid}')
+                process.close()  # release resources
+                process_list.remove(process)  # remove process from process list
+
+        wait = len(process_list) >= max_processes  # update wait flag based on number of active processes
+        if wait:  # sleep if we still need to wait
+            sleep(polling_rate)
+
+
+def start_new_model_process(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDataset):
+    """
+    Starts a new model-training process
+    NOTE: adds the newly created process to process_list
+    :param model_trainer: ScikitModelTrainer to fit
+    :param dataset: dataset to fit model on
+    """
     global process_list, reports
-
-    while len(mp.active_children()) > options.processes:  # Active processes is above process limit
-        sleep(5)  # Sleep before checking again if a job has finished
-
-    for process in process_list:  # for each process
-        if not process.is_alive():  # if process finished
-            print(f'Closing process {process.pid}')
-            process.close()  # release resources
-            process_list.remove(process)  # remove process from process list
 
     # Create process to fit a single model
     new_process = mp.Process(target=fit_single_model, args=(model_trainer, dataset, reports), daemon=True)
@@ -134,7 +156,7 @@ if __name__ == '__main__':
                       help='Do not build plots if provided')
     options, _ = parser.parse_args()
 
-    # n_jobs parameter for GridSearch (must be 1 with multiprocessing)
+    # n_jobs parameter sklearn (must be 1 when using multiprocessing)
     n_jobs = 1 if options.processes is not None else -1
 
     # Initialize estimators and parameters to use for experiments
@@ -196,14 +218,12 @@ if __name__ == '__main__':
 
         for data in datasets:  # For each dataset
             if options.processes is not None:  # Use multiprocessing if enabled
-                start_training_process(trainer, data)
+                wait_for_processes(options.processes, POLLING_RATE)  # Wait for acceptable number of running processes
+                start_new_model_process(trainer, data)  # Start a new training process
             else:  # Do not use multiprocessing
                 fit_single_model(trainer, data, reports)  # Fit a single model in the current process
 
-    for p in process_list:  # for each remaining process
-        p.join()  # wait for process to finish
-        print(f'Closing process {p.pid}')
-        p.close()  # release resources
+    wait_for_processes(1, POLLING_RATE)  # Wait for any still-running processes to terminate
 
     # Consensus baselines
     if options.model is None:  # no model selected
