@@ -123,14 +123,6 @@ def build_datasets(period=5,
         '': StandardScaler(),
         'PCA': make_pipeline(StandardScaler(),
                              PCA(**pca_kwargs)),
-        'Fourier': make_pipeline(StandardScaler(),
-                                 FunctionTransformer(utils.fourier, utils.inverse_fourier)),
-        'PCA into Fourier': make_pipeline(StandardScaler(),
-                                          PCA(**pca_kwargs),
-                                          FunctionTransformer(utils.fourier, utils.inverse_fourier)),
-        'Fourier into PCA': make_pipeline(StandardScaler(),
-                                          FunctionTransformer(utils.fourier, utils.inverse_fourier),
-                                          PCA(**pca_kwargs))
     }
 
     # Simple dataset generation

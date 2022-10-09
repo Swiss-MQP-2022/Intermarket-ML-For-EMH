@@ -297,31 +297,6 @@ def print_classification_reports(results: pd.DataFrame):
             print(report)
 
 
-def fourier(data):
-    """
-    Applies a fourier transform on the provided data
-    (note: creates additional columns to store complex components)
-    :param data: data to transform
-    :return: fourier transformed data
-    """
-    data = fft.fft(data, axis=0)
-    data = np.ascontiguousarray(data).view(np.float64)
-    return data
-
-
-def inverse_fourier(data):
-    """
-    Applies an inverse fourier transform on the provided data
-    (note: assumes complex components are interleaved with reals for complex conversion)
-    (note: this function may not produce identical data to original data due to floating point imprecision)
-    :param data: data to apply inverse fourier to
-    :return: inverse-fourier transformed data
-    """
-    data = np.ascontiguousarray(data).view(np.complex128)
-    data = fft.ifft(data, axis=0).real
-    return data
-
-
 def compute_consensus(data: pd.Series, period: int) -> pd.Series:
     """
     Compute the moving consensus (mode) of a series
