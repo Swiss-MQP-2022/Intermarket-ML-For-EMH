@@ -22,7 +22,7 @@ def graph_roc(title, roc_list, legend_labels, plot_dir):
     :param plot_dir: directory to save plot to
     """
     lw = 2
-    colors = cycle(['aqua', 'darkorange', 'cornflowerblue', 'blue', 'red', 'black', 'yellow', 'green'])
+    colors = cycle(['darkorange', 'cornflowerblue', 'blue', 'red', 'black', 'green', 'aqua'])
 
     for i, ((fpr, tpr, _), color) in enumerate(zip(roc_list, colors)):
         plt.plot(
@@ -56,10 +56,10 @@ def graph_all_roc(data, plot_dir=r'./out/plots'):
     Path(plot_dir).mkdir(parents=True, exist_ok=True)  # create plots directory if it doesn't exist
 
     # Generate ROC w.r.t. model plots
-    for model_name, model in tqdm(data['roc', DataSplit.TRAIN].groupby(level=0)):
+    for model_name, model in tqdm(data['roc', DataSplit.TEST].groupby(level=0)):
         graph_roc(f'model: {model_name}', model.to_numpy(), model.index.get_level_values(1).tolist(), plot_dir)
     # Generate ROC w.r.t. dataset plots
-    for data_name, dataset in tqdm(data['roc', DataSplit.TRAIN].groupby(level=1)):
+    for data_name, dataset in tqdm(data['roc', DataSplit.TEST].groupby(level=1)):
         graph_roc(f'dataset: {data_name}', dataset.to_numpy(), dataset.index.get_level_values(0).tolist(), plot_dir)
 
 

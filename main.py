@@ -103,7 +103,7 @@ def wait_for_processes(wait_threshold: int, polling_rate: int):
     Wait until the number of outstanding processes is below a specified amount
     NOTE: closes any processes that terminate and removes them from process_list
     NOTE: WILL ALWAYS CHECK FOR AND CLOSE ANY DEAD PROCESSES AT LEAST ONCE
-    :param wait_threshold: minimum number of processes require waiting
+    :param wait_threshold: minimum number of processes require waiting (never waits if wait_threshold is -1)
     :param polling_rate: rate (in seconds) to poll if any processes terminated
     """
     global process_list
@@ -116,7 +116,8 @@ def wait_for_processes(wait_threshold: int, polling_rate: int):
                 process.close()  # release resources
                 process_list.remove(process)  # remove process from process list
 
-        wait = len(process_list) >= wait_threshold  # update wait flag based on number of active processes
+        # update wait flag based on number of active processes (always False if threshold is -1)
+        wait = len(process_list) >= wait_threshold != -1
         if wait:  # sleep if we still need to wait
             sleep(polling_rate)
 
@@ -242,7 +243,7 @@ if __name__ == '__main__':
     # Results is a DataFrame with two index levels (model, dataset) and two column levels (report type, data split)
 
     # Save metrics to CSVs
-    save_metrics(results, model_name=options.model)
+    # save_metrics(results, model_name=options.model)
 
     if options.plot and options.model not in CONSENSUS_BASELINES:
         # Generate ROC graphs
