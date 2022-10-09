@@ -1,7 +1,9 @@
 from optparse import OptionParser
 import multiprocessing as mp
-import os
+from pathlib import Path
 from time import sleep
+import uuid
+import os
 
 import numpy as np
 import pandas as pd
@@ -155,7 +157,25 @@ if __name__ == '__main__':
                       default=True,
                       dest='plot',
                       help='Do not build plots if provided')
+    parser.add_option('-o', '--out-dir',
+                      action='store',
+                      type='str',
+                      default='./out',
+                      dest='out_dir',
+                      help='Path to directory to save output files to')
+    parser.add_option('-u', '--use-uuid',
+                      action='store_true',
+                      default=False,
+                      dest='use_uuid',
+                      help='Appends a unique identifier the output directory')
     options, _ = parser.parse_args()
+
+    if options.use_uuid:
+        options.out_dir += rf'_{uuid.uuid4()}'
+
+    plot_dir = rf'{options.out_dir}/plots'
+
+    Path(plot_dir).mkdir(parents=True, exist_ok=True)  # create output directories if they don't exist
 
     # n_jobs parameter sklearn (must be 1 when using multiprocessing)
     n_jobs = 1 if options.processes is not None else -1
@@ -243,11 +263,11 @@ if __name__ == '__main__':
     # Results is a DataFrame with two index levels (model, dataset) and two column levels (report type, data split)
 
     # Save metrics to CSVs
-    # save_metrics(results, model_name=options.model)
+    save_metrics(results, model_name=options.model, out_dir=options.out_dir)
 
     if options.plot and options.model not in CONSENSUS_BASELINES:
         # Generate ROC graphs
-        graph_all_roc(results.drop(index=CONSENSUS_BASELINES, errors='ignore'))
+        graph_all_roc(results.drop(index=CONSENSUS_BASELINES, errors='ignore'), plot_dir=plot_dir)
 
     # Print classification reports for all model-dataset pairs
     print_classification_reports(results)

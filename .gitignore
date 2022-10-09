@@ -2,4 +2,4 @@ data/
 .idea/
 __pycache__/
 images/
-out/
+out*/

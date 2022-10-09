@@ -1,5 +1,4 @@
 from itertools import cycle
-from pathlib import Path
 
 import pandas as pd
 import matplotlib
@@ -53,8 +52,6 @@ def graph_all_roc(data, plot_dir=r'./out/plots'):
     """
     print('Generating ROC graphs...')
 
-    Path(plot_dir).mkdir(parents=True, exist_ok=True)  # create plots directory if it doesn't exist
-
     # Generate ROC w.r.t. model plots
     for model_name, model in tqdm(data['roc', DataSplit.TEST].groupby(level=0)):
         graph_roc(f'model: {model_name}', model.to_numpy(), model.index.get_level_values(1).tolist(), plot_dir)
@@ -72,13 +69,11 @@ def save_metrics(data: pd.DataFrame, model_name=None, out_dir=r'./out'):
     """
     print('Saving metrics...')
 
-    Path(out_dir).mkdir(parents=True, exist_ok=True)  # create plots directory if it doesn't exist
-
-    model_name = model_name + '_' if model_name is not None else ''
+    model_name = f'{model_name}_' if model_name is not None else ''
 
     # Save metrics to csv
     metric_reports = data['classification report'].unstack(level=0).swaplevel(0, 1, axis=1)
     for metric_name, metric in METRICS.items():
         metric_data = metric_reports.applymap(
             lambda x: x[metric[0]][metric[1]] if isinstance(metric, tuple) else x[metric])
-        metric_data.to_csv(rf'./out/{make_filename_safe(f"{model_name}{metric_name}")}.csv')
+        metric_data.to_csv(rf'{out_dir}/{make_filename_safe(f"{model_name}{metric_name}")}.csv')
