@@ -9,7 +9,7 @@ class ScikitModelTrainer:
     def __init__(self,
                  estimator: Estimator,
                  param_grid: dict[str, any] = None,
-                 scoring: str = 'f1_weighted',  # Currently forcing string-specified scorers only
+                 scoring: str = 'f1_macro',  # Currently forcing string-specified scorers only
                  n_jobs: int = -1,
                  cv: Union[int, BaseCrossValidator] = 5,
                  name=None,
