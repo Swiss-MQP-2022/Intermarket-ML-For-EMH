@@ -218,16 +218,12 @@ if __name__ == '__main__':
         else:  # desired model can use automatic fitting
             models = {options.model: models[options.model]}
 
-    test_size = 0.2
-    replace_zero = -1
-
     # Construct datasets to experiment on
     datasets = build_datasets(period=5,
                               brn_features=5,
-                              test_size=test_size,
+                              test_size=0.2,
                               zero_col_thresh=0.25,
-                              replace_zero=replace_zero,
-                              svd_solver='full', n_components=0.95)
+                              replace_zero=-1)
 
     process_list = []  # List of processes (used for multiprocessing)
     reports = {}  # Dictionary which stores result data from experiments
