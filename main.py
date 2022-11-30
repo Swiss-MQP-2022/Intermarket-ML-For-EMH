@@ -155,11 +155,6 @@ def initialize_option_parser():
                       type='model_name',
                       dest='model',
                       help='Singular model to train')
-    parser.add_option('-n', '--no-plots',
-                      action='store_false',
-                      default=True,
-                      dest='plot',
-                      help='Do not build plots if provided')
     parser.add_option('-o', '--out-dir',
                       action='store',
                       type='str',
@@ -182,10 +177,6 @@ if __name__ == '__main__':
 
     if options.use_uuid:
         options.out_dir += rf'_{uuid.uuid4()}'
-
-    plot_dir = rf'{options.out_dir}/plots'
-
-    Path(plot_dir).mkdir(parents=True, exist_ok=True)  # create output directories if they don't exist
 
     # n_jobs parameter sklearn (must be 1 when using multiprocessing)
     n_jobs = 1 if options.processes is not None else -1
