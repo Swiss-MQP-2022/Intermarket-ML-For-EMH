@@ -13,15 +13,15 @@ class DataSplit(Enum):
 
 
 class Model(str, Enum):
-    DECISION_TREE = "DecisionTree"
-    RANDOM_FOREST = "RandomForest"
-    SUPPORT_VECTOR_MACHINE = "SVM"
-    K_NEAREST_NEIGHBORS = "KNN"
-    LOGISTIC_REGRESSION = "LogisticRegression"
-    RANDOM_BASELINE = "RandomBaseline"
-    CONSTANT_BASELINE = "ConstantBaseline"
-    PREVIOUS_BASELINE = "PreviousBaseline"
-    CONSENSUS_BASELINE = "ConsensusBaseline"
+    DECISION_TREE = 'DecisionTree'
+    RANDOM_FOREST = 'RandomForest'
+    SUPPORT_VECTOR_MACHINE = 'SVM'
+    K_NEAREST_NEIGHBORS = 'KNN'
+    LOGISTIC_REGRESSION = 'LogisticRegression'
+    RANDOM_BASELINE = 'RandomBaseline'
+    CONSTANT_BASELINE = 'ConstantBaseline'
+    PREVIOUS_BASELINE = 'PreviousBaseline'
+    CONSENSUS_BASELINE = 'ConsensusBaseline'
 
 
 DataDict = dict[str, dict[str, pd.DataFrame]]

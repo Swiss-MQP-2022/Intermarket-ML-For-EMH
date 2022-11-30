@@ -13,14 +13,19 @@ from constants import DATASET_SYMBOLS, DataDict, AssetID, Model
 
 class Scaler(Protocol):
     def fit(self, X): ...
+
     def transform(self, X) -> np.ndarray: ...
+
     def fit_transform(self, X) -> np.ndarray: ...
+
     def inverse_transform(self, X) -> np.ndarray: ...
 
 
 class Estimator(Protocol):
     def fit(self, X, y): ...
+
     def predict(self, X) -> ...: ...
+
     def predict_proba(self, x) -> ...: ...
 
 
@@ -255,7 +260,8 @@ def join_datasets(data: list[pd.DataFrame], flatten_columns=True):
     return joined
 
 
-def align_data(X: Union[pd.DataFrame, pd.Series], y: Union[pd.DataFrame, pd.Series]) -> (Union[pd.DataFrame, pd.Series], Union[pd.DataFrame, pd.Series]):
+def align_data(X: Union[pd.DataFrame, pd.Series], y: Union[pd.DataFrame, pd.Series]) -> (
+Union[pd.DataFrame, pd.Series], Union[pd.DataFrame, pd.Series]):
     """
     Align and filter two sets of data based on their shared indices
     :param X: first dataset to align
@@ -312,18 +318,27 @@ def compute_consensus(data: pd.Series, period: int) -> pd.Series:
     """
     windowed = data.rolling(period)
     consensus = windowed.apply(lambda x: stats.mode(x, keepdims=False)[0])
-    return consensus.iloc[period-1:]
+    return consensus.iloc[period - 1:]
 
 
 def encode_dataset(dataset_name: str) -> list[bool]:
     """
     One-hot encodes the provided dataset name
     :param dataset_name: name of dataset to encode
-    :return: dataset encoding in order [forex, bond, index-futures, commodities-futures, SPY, normal sample]
+    :return: dataset encoding in order defined by DATASET_SYMBOLS constant
     """
     asset_types = re.sub('[\\[\\]]', '', dataset_name).split(', ')
 
-    encoding = [i in asset_types for i in DATASET_SYMBOLS.keys()]
+    encoding = [asset_type in asset_types for asset_type in DATASET_SYMBOLS.keys()]
     encoding += [True, False] if asset_types[0] == 'SPY Only' else [False, True]
 
     return encoding
+
+
+def encode_model(model_name: str) -> list[bool]:
+    """
+    One-hot encodes the provided model name
+    :param model_name: name of model to encode
+    :return: model encoding in order defined by Model enum
+    """
+    return [model == model_name for model in Model]
