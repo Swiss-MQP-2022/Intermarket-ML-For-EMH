@@ -1,13 +1,34 @@
+from enum import Enum
 from typing import Literal, get_args
 
 import pandas as pd
 from sklearn.preprocessing import FunctionTransformer
 
+
+class DataSplit(Enum):
+    TRAIN = 'train'
+    VALIDATE = 'validation'
+    TEST = 'test'
+    ALL = 'ALL'
+
+
+class Model(str, Enum):
+    DECISION_TREE = "DecisionTree"
+    RANDOM_FOREST = "RandomForest"
+    SUPPORT_VECTOR_MACHINE = "SVM"
+    K_NEAREST_NEIGHBORS = "KNN"
+    LOGISTIC_REGRESSION = "LogisticRegression"
+    RANDOM_BASELINE = "RandomBaseline"
+    CONSTANT_BASELINE = "ConstantBaseline"
+    PREVIOUS_BASELINE = "PreviousBaseline"
+    CONSENSUS_BASELINE = "ConsensusBaseline"
+
+
 DataDict = dict[str, dict[str, pd.DataFrame]]
 AssetID = tuple[str, str]
-ConsensusBaseline = Literal['PreviousBaseline', 'ConsensusBaseline']
+ConsensusBaseline = Literal[Model.PREVIOUS_BASELINE, Model.CONSENSUS_BASELINE]
 
-CONSENSUS_BASELINES: list[ConsensusBaseline] = list(get_args(ConsensusBaseline))
+CONSENSUS_BASELINES = get_args(ConsensusBaseline)
 
 DATASET_SYMBOLS = {
     'forex': [('forex', 'USDGBP.FOREX'),

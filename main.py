@@ -19,9 +19,9 @@ from sklearn.calibration import CalibratedClassifierCV
 
 from dataset import build_datasets, TimeSeriesDataset
 from trainer import ScikitModelTrainer
-from utils import DataSplit, print_classification_reports, align_data, compute_consensus
+from utils import OptionWithModel, print_classification_reports, align_data, compute_consensus
 from out_functions import graph_all_roc, save_metrics
-from constants import ConsensusBaseline, CONSENSUS_BASELINES
+from constants import ConsensusBaseline, CONSENSUS_BASELINES, DataSplit, Model
 
 POLLING_RATE = 30  # Rate in seconds to poll changes in process status
 
@@ -67,13 +67,16 @@ def fit_single_model(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDatas
     print(f'Done fitting {model_trainer.name} on {dataset.name} (PID {os.getpid()})')
 
 
-def fit_consensus_baseline(dataset_list: list[TimeSeriesDataset], report_dict: dict[str, dict], baseline: ConsensusBaseline):
+def fit_consensus_baseline(dataset_list: list[TimeSeriesDataset],
+                           report_dict: dict[str, dict],
+                           baseline: ConsensusBaseline):
     """
     Fit and record results for the Consensus Baseline (Previous Baseline is period=1)
     :param dataset_list: list of datasets to fit on
     :param report_dict: dictionary to save reports to
     :param baseline: desired baseline
     """
+    baseline = baseline.value
     print(f'Generating {baseline}...')
 
     report_dict[baseline] = {}
@@ -141,7 +144,7 @@ def start_new_model_process(model_trainer: ScikitModelTrainer, dataset: TimeSeri
 
 if __name__ == '__main__':
     # Initialize option parser for optional multiprocessing parameter
-    parser = OptionParser()
+    parser = OptionParser(option_class=OptionWithModel)
     parser.add_option('-p', '--processes',
                       action='store',
                       type='int',
@@ -149,7 +152,7 @@ if __name__ == '__main__':
                       help='Use multiprocessing when fitting models')
     parser.add_option('-m', '--model',
                       action='store',
-                      type='str',
+                      type='model_name',
                       dest='model',
                       help='Singular model to train')
     parser.add_option('-n', '--no-plots',
@@ -182,33 +185,33 @@ if __name__ == '__main__':
 
     # Initialize estimators and parameters to use for experiments
     models = {
-        'DecisionTree': dict(estimator=DecisionTreeClassifier(),
-                             param_grid=dict(splitter=['best', 'random'],
-                                             max_depth=[5, 10, 25, None],
-                                             min_samples_split=[2, 5, 10, 50],
-                                             min_samples_leaf=[1, 5, 10])),
-        'RandomForest': dict(estimator=RandomForestClassifier(n_jobs=n_jobs),
-                             param_grid=dict(n_estimators=[50, 100, 500],
-                                             criterion=['gini', 'entropy'],
-                                             max_depth=[5, 10, 25, None],
-                                             min_samples_split=[2, 5, 10, 50],
-                                             min_samples_leaf=[1, 5, 10])),
-        'SVC': dict(estimator=LinearSVC(max_iter=1e6),
-                    param_grid=dict(penalty=['l1', 'l2'],
-                                    C=[1, 4, 9, 16, 25],
-                                    loss=['hinge', 'squared_hinge']),
-                    error_score=0),
-        'KNN': dict(estimator=KNN(n_jobs=n_jobs),
-                    param_grid=dict(n_neighbors=[5, 10, 15, 20],
-                                    weights=['uniform', 'distance'],
-                                    metric=['l1', 'l2', 'cosine'])),
-        'LogisticRegression': dict(estimator=LogisticRegression(max_iter=1e4),
-                                   param_grid=dict(penalty=['l1', 'l2'],
-                                                   C=np.logspace(-3, 3, 7),
-                                                   solver=['newton-cg', 'lbfgs', 'liblinear']),
-                                   error_score=0),
-        'PriorBaseline': dict(estimator=DummyClassifier(strategy='prior')),
-        'RandomBaseline': dict(estimator=DummyClassifier(strategy='uniform', random_state=0)),
+        Model.DECISION_TREE: dict(estimator=DecisionTreeClassifier(),
+                                  param_grid=dict(splitter=['best', 'random'],
+                                                  max_depth=[5, 10, 25, None],
+                                                  min_samples_split=[2, 5, 10, 50],
+                                                  min_samples_leaf=[1, 5, 10])),
+        Model.RANDOM_FOREST: dict(estimator=RandomForestClassifier(n_jobs=n_jobs),
+                                  param_grid=dict(n_estimators=[50, 100, 500],
+                                                  criterion=['gini', 'entropy'],
+                                                  max_depth=[5, 10, 25, None],
+                                                  min_samples_split=[2, 5, 10, 50],
+                                                  min_samples_leaf=[1, 5, 10])),
+        Model.SUPPORT_VECTOR_MACHINE: dict(estimator=LinearSVC(max_iter=1e6),
+                                           param_grid=dict(penalty=['l1', 'l2'],
+                                                           C=[1, 4, 9, 16, 25],
+                                                           loss=['hinge', 'squared_hinge']),
+                                           error_score=0),
+        Model.K_NEAREST_NEIGHBORS: dict(estimator=KNN(n_jobs=n_jobs),
+                                        param_grid=dict(n_neighbors=[5, 10, 15, 20],
+                                                        weights=['uniform', 'distance'],
+                                                        metric=['l1', 'l2', 'cosine'])),
+        Model.LOGISTIC_REGRESSION: dict(estimator=LogisticRegression(max_iter=1e4),
+                                        param_grid=dict(penalty=['l1', 'l2'],
+                                                        C=np.logspace(-3, 3, 7),
+                                                        solver=['newton-cg', 'lbfgs', 'liblinear']),
+                                        error_score=0),
+        Model.CONSTANT_BASELINE: dict(estimator=DummyClassifier(strategy='prior')),
+        Model.RANDOM_BASELINE: dict(estimator=DummyClassifier(strategy='uniform', random_state=0)),
     }
 
     # Specific model selected
@@ -225,12 +228,14 @@ if __name__ == '__main__':
                               zero_col_thresh=0.25,
                               replace_zero=-1)
 
+    # Dictionary which stores result data from experiments
+    reports = {}  # Organized as reports[model name][dataset name][metric group][split]
     process_list = []  # List of processes (used for multiprocessing)
-    reports = {}  # Dictionary which stores result data from experiments
 
     # Model experimentation
     for model_name, model in models.items():  # For each model
-        trainer = ScikitModelTrainer(**model, n_jobs=n_jobs, name=model_name)  # Initialize a trainer for the model
+        trainer = ScikitModelTrainer(**model, n_jobs=n_jobs,
+                                     name=model_name.value)  # Initialize a trainer for the model
         reports[trainer.name] = mp.Manager().dict()  # Initialize dictionary for reports associated with model
 
         for data in datasets:  # For each dataset
@@ -255,6 +260,7 @@ if __name__ == '__main__':
                                       for d in reports[m].keys()
                                       for r in reports[m][d].keys()},
                                      orient='index')
+    # print(results)
     results = results.unstack().swaplevel(0, 1, axis=1)  # Reorganize MultiIndexes
     # Results is a DataFrame with two index levels (model, dataset) and two column levels (report type, data split)
 
@@ -263,7 +269,8 @@ if __name__ == '__main__':
 
     if options.plot and options.model not in CONSENSUS_BASELINES:
         # Generate ROC graphs
-        graph_all_roc(results.drop(index=CONSENSUS_BASELINES, errors='ignore'), plot_dir=plot_dir)
+        graph_all_roc(results.drop(index=list(map(lambda x: x.value, CONSENSUS_BASELINES)), errors='ignore'),
+                      plot_dir=plot_dir)
 
     # Print classification reports for all model-dataset pairs
     print_classification_reports(results)

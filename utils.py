@@ -1,21 +1,14 @@
-from enum import Enum
+from copy import copy
+from optparse import Option, OptionValueError
 from pathlib import Path
-from typing import Union, TypeVar, Callable, Protocol, Literal
+from typing import Union, TypeVar, Callable, Protocol
 import re
 
 import pandas as pd
 import numpy as np
-from numpy import fft
 from scipy import stats
 
-from constants import DATASET_SYMBOLS, DataDict, AssetID
-
-
-class DataSplit(Enum):
-    TRAIN = 'train'
-    VALIDATE = 'validation'
-    TEST = 'test'
-    ALL = 'ALL'
+from constants import DATASET_SYMBOLS, DataDict, AssetID, Model
 
 
 class Scaler(Protocol):
@@ -29,6 +22,19 @@ class Estimator(Protocol):
     def fit(self, X, y): ...
     def predict(self, X) -> ...: ...
     def predict_proba(self, x) -> ...: ...
+
+
+def check_model_name(_, opt, value):
+    try:
+        return Model(value)
+    except ValueError:
+        raise OptionValueError(f'option {opt}: invalid model name: {value}')
+
+
+class OptionWithModel(Option):
+    TYPES = Option.TYPES + ("model_name",)
+    TYPE_CHECKER = copy(Option.TYPE_CHECKER)
+    TYPE_CHECKER["model_name"] = check_model_name
 
 
 def pct_to_cumulative(data, initial=None):
@@ -307,3 +313,17 @@ def compute_consensus(data: pd.Series, period: int) -> pd.Series:
     windowed = data.rolling(period)
     consensus = windowed.apply(lambda x: stats.mode(x, keepdims=False)[0])
     return consensus.iloc[period-1:]
+
+
+def encode_dataset(dataset_name: str) -> list[bool]:
+    """
+    One-hot encodes the provided dataset name
+    :param dataset_name: name of dataset to encode
+    :return: dataset encoding in order [forex, bond, index-futures, commodities-futures, SPY, normal sample]
+    """
+    asset_types = re.sub('[\\[\\]]', '', dataset_name).split(', ')
+
+    encoding = [i in asset_types for i in DATASET_SYMBOLS.keys()]
+    encoding += [True, False] if asset_types[0] == 'SPY Only' else [False, True]
+
+    return encoding

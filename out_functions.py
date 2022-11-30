@@ -6,8 +6,9 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import auc
 from tqdm import tqdm
 
-from utils import make_filename_safe, DataSplit
-from constants import METRICS
+from utils import make_filename_safe
+from constants import METRICS, DataSplit
+
 
 # matplotlib.use('TkAgg')  # This is required for graph_roc to work on certain systems. Uncomment if required.
 
