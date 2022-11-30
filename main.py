@@ -6,7 +6,6 @@ import uuid
 import os
 
 import numpy as np
-import pandas as pd
 
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
@@ -19,9 +18,8 @@ from sklearn.calibration import CalibratedClassifierCV
 
 from dataset import build_datasets, TimeSeriesDataset
 from trainer import ScikitModelTrainer
-from utils import OptionWithModel, print_classification_reports, align_data, compute_consensus
-from out_functions import graph_all_roc, save_metrics
-from constants import ConsensusBaseline, CONSENSUS_BASELINES, DataSplit, Model
+from utils import OptionWithModel, align_data, compute_consensus, encode_results, save_metrics
+from constants import ConsensusBaseline, CONSENSUS_BASELINES, DataSplit, Model, Report
 
 POLLING_RATE = 30  # Rate in seconds to poll changes in process status
 
@@ -52,15 +50,15 @@ def fit_single_model(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDatas
 
     # Update report dictionary with results
     report_dict[model_trainer.name][dataset.name] = {
-        'classification report': {
-            DataSplit.TRAIN: classification_report(dataset.y_train, predicted_y_train,
-                                                   zero_division=0, output_dict=True),
-            DataSplit.TEST: classification_report(dataset.y_test, predicted_y_test,
-                                                  zero_division=0, output_dict=True)
+        DataSplit.TRAIN: {
+            Report.ROC: roc_curve(dataset.y_test, y_test_score[:, -1]),
+            Report.CLASSIFICATION_REPORT: classification_report(dataset.y_train, predicted_y_train,
+                                                                zero_division=0, output_dict=True)
         },
-        'roc': {
-            DataSplit.TRAIN: roc_curve(dataset.y_train, y_train_score[:, -1]),
-            DataSplit.TEST: roc_curve(dataset.y_test, y_test_score[:, -1])
+        DataSplit.TEST: {
+            Report.ROC: roc_curve(dataset.y_train, y_train_score[:, -1]),
+            Report.CLASSIFICATION_REPORT: classification_report(dataset.y_test, predicted_y_test,
+                                                                zero_division=0, output_dict=True)
         }
     }
 
@@ -76,7 +74,6 @@ def fit_consensus_baseline(dataset_list: list[TimeSeriesDataset],
     :param report_dict: dictionary to save reports to
     :param baseline: desired baseline
     """
-    baseline = baseline.value
     print(f'Generating {baseline}...')
 
     report_dict[baseline] = {}
@@ -88,15 +85,15 @@ def fit_consensus_baseline(dataset_list: list[TimeSeriesDataset],
         test_consensus = compute_consensus(dataset.y_test.shift(1).iloc[1:], period)
 
         report_dict[baseline][dataset.name] = {
-            'classification report': {
-                DataSplit.TRAIN: classification_report(*align_data(train_consensus, dataset.y_train),
-                                                       zero_division=0, output_dict=True),
-                DataSplit.TEST: classification_report(*align_data(test_consensus, dataset.y_test),
-                                                      zero_division=0, output_dict=True)
+            DataSplit.TRAIN: {
+                Report.ROC: np.nan,
+                Report.CLASSIFICATION_REPORT: classification_report(*align_data(train_consensus, dataset.y_train),
+                                                                    zero_division=0, output_dict=True)
             },
-            'roc': {
-                DataSplit.TRAIN: np.nan,
-                DataSplit.TEST: np.nan
+            DataSplit.TEST: {
+                Report.ROC: np.nan,
+                Report.CLASSIFICATION_REPORT: classification_report(*align_data(test_consensus, dataset.y_test),
+                                                                    zero_division=0, output_dict=True)
             }
         }
 
@@ -229,7 +226,7 @@ if __name__ == '__main__':
                               replace_zero=-1)
 
     # Dictionary which stores result data from experiments
-    reports = {}  # Organized as reports[model name][dataset name][metric group][split]
+    reports = {}  # Organized as reports[model name][dataset name][split][report type]
     process_list = []  # List of processes (used for multiprocessing)
 
     # Model experimentation
@@ -254,25 +251,12 @@ if __name__ == '__main__':
     elif options.model in CONSENSUS_BASELINES:  # consensus baseline selected as model
         fit_consensus_baseline(datasets, reports, options.model)  # fit desired baseline
 
-    # Convert reports into a multi-level dataframe of results
-    results = pd.DataFrame.from_dict({(m, d, r): reports[m][d][r]
-                                      for m in reports.keys()
-                                      for d in reports[m].keys()
-                                      for r in reports[m][d].keys()},
-                                     orient='index')
-    # print(results)
-    results = results.unstack().swaplevel(0, 1, axis=1)  # Reorganize MultiIndexes
-    # Results is a DataFrame with two index levels (model, dataset) and two column levels (report type, data split)
+    # RESULT REPORTING
+    results = encode_results(reports)
 
-    # Save metrics to CSVs
-    save_metrics(results, model_name=options.model, out_dir=options.out_dir)
+    print(results)
 
-    if options.plot and options.model not in CONSENSUS_BASELINES:
-        # Generate ROC graphs
-        graph_all_roc(results.drop(index=list(map(lambda x: x.value, CONSENSUS_BASELINES)), errors='ignore'),
-                      plot_dir=plot_dir)
-
-    # Print classification reports for all model-dataset pairs
-    print_classification_reports(results)
+    # Save metrics
+    save_metrics(results, options.model, out_dir=options.out_dir)
 
     print('Done!')

@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 
-from constants import DATASET_SYMBOLS, DataDict, AssetID, Model
+from constants import DATASET_SYMBOLS, DataDict, AssetID, Model, DataSplit, METRICS, Report
 
 
 class Scaler(Protocol):
@@ -296,19 +296,6 @@ def make_filename_safe(name: str) -> str:
     return re.sub('[,:]', '', name.rstrip()).replace(' ', '_')
 
 
-def print_classification_reports(results: pd.DataFrame):
-    """
-    Print out all classification reports
-    :param results: dataframe containing results
-    """
-    print('Printing classification reports...')
-    # For each model-dataset pair
-    for (model_name, data_name), clf_report in results['classification report'].iterrows():
-        for split, report in clf_report.items():
-            print(f'{model_name}: {data_name}, {split}')
-            print(report)
-
-
 def compute_consensus(data: pd.Series, period: int) -> pd.Series:
     """
     Compute the moving consensus (mode) of a series
@@ -325,20 +312,81 @@ def encode_dataset(dataset_name: str) -> list[bool]:
     """
     One-hot encodes the provided dataset name
     :param dataset_name: name of dataset to encode
-    :return: dataset encoding in order defined by DATASET_SYMBOLS constant
+    :return: dataset encoding in order defined by DATASET_SYMBOLS constant + [SPY, random]
     """
     asset_types = re.sub('[\\[\\]]', '', dataset_name).split(', ')
 
     encoding = [asset_type in asset_types for asset_type in DATASET_SYMBOLS.keys()]
-    encoding += [True, False] if asset_types[0] == 'SPY Only' else [False, True]
+    encoding += [False, True] if asset_types[0] == 'Normal Sample' else [True, False]
 
     return encoding
 
 
-def encode_model(model_name: str) -> list[bool]:
+def encode_model(model: Model) -> list[bool]:
     """
     One-hot encodes the provided model name
-    :param model_name: name of model to encode
+    :param model: name of model to encode
     :return: model encoding in order defined by Model enum
     """
-    return [model == model_name for model in Model]
+    return [ref_model == model for ref_model in Model]
+
+
+def make_row_from_report(reports: dict, model: Model, dataset: str, split: DataSplit):
+    """
+    Generates a properly encoded data row from the provided report
+    :param reports: the un-encoded report
+    :param model: Model used in row
+    :param dataset: Dataset used in row
+    :param split: DataSplit used in row
+    :return: Properly encoded result data
+    """
+    data = reports[model][dataset][split]
+
+    row = encode_model(model) + encode_dataset(dataset)
+    row += [split == DataSplit.TEST]
+    row += [data[Report.CLASSIFICATION_REPORT][metric[0]][metric[1]]
+            if isinstance(metric, tuple)
+            else data[Report.CLASSIFICATION_REPORT][metric]
+            for metric in METRICS.values()]
+    row += [data[Report.ROC]]
+
+    return row
+
+
+def encode_results(reports) -> pd.DataFrame:
+    """
+    Encodes the provided report's data into a more useful format
+    :param reports: reports dictionary to encode
+    :return: properly encoded results data
+    """
+    print('Encoding results...')
+
+    # Get column names
+    columns = [model.value for model in Model] + \
+              list(DATASET_SYMBOLS.keys()) + \
+              ['SPY', 'Random', 'Test'] + \
+              list(METRICS.keys()) + \
+              [Report.ROC.value]
+
+    # Properly encode results into useful format
+    results = [make_row_from_report(reports, model, dataset, split)
+               for model in reports.keys()
+               for dataset in reports[model].keys()
+               for split in [DataSplit.TRAIN, DataSplit.TEST]]
+
+    return pd.DataFrame(results, columns=columns)
+
+
+def save_metrics(data: pd.DataFrame, model: Model = None, out_dir=r'./out'):
+    """
+    Generate CSVs of desired metrics
+    :param data: dataframe containing metric data
+    :param model: associated model (prefix for filename)
+    :param out_dir: directory to save CSVs
+    """
+    print('Saving metrics...')
+
+    model_name = f'{model.value}_' if model is not None else ''
+
+    # Save metrics to csv
+    data.to_csv(rf'{out_dir}/{make_filename_safe(model_name)}results.csv')

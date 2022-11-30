@@ -5,11 +5,11 @@ import pandas as pd
 from sklearn.preprocessing import FunctionTransformer
 
 
-class DataSplit(Enum):
+class DataSplit(str, Enum):
     TRAIN = 'train'
-    VALIDATE = 'validation'
+    VALIDATE = 'validation'  # unused
     TEST = 'test'
-    ALL = 'ALL'
+    ALL = 'ALL'  # unused
 
 
 class Model(str, Enum):
@@ -22,6 +22,11 @@ class Model(str, Enum):
     CONSTANT_BASELINE = 'ConstantBaseline'
     PREVIOUS_BASELINE = 'PreviousBaseline'
     CONSENSUS_BASELINE = 'ConsensusBaseline'
+
+
+class Report(str, Enum):
+    CLASSIFICATION_REPORT = 'classification report'
+    ROC = 'roc'
 
 
 DataDict = dict[str, dict[str, pd.DataFrame]]
