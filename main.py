@@ -17,7 +17,6 @@ from sklearn.dummy import DummyClassifier
 from sklearn.calibration import CalibratedClassifierCV
 
 from dataset import build_datasets, TimeSeriesDataset
-from stats import run_test
 from trainer import ScikitModelTrainer
 from utils import OptionWithModel, align_data, compute_consensus, encode_results, save_results
 from constants import ConsensusBaseline, CONSENSUS_BASELINES, DataSplit, Model, Report
@@ -52,12 +51,12 @@ def fit_single_model(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDatas
     # Update report dictionary with results
     report_dict[model_trainer.name][dataset.name] = {
         DataSplit.TRAIN: {
-            Report.ROC_AUC: roc_auc_score(dataset.y_test, y_test_score[:, -1], average='macro'),
+            Report.ROC_AUC: roc_auc_score(dataset.y_train, y_train_score[:, -1], average='macro'),
             Report.CLASSIFICATION_REPORT: classification_report(dataset.y_train, predicted_y_train,
                                                                 zero_division=0, output_dict=True)
         },
         DataSplit.TEST: {
-            Report.ROC_AUC: roc_auc_score(dataset.y_train, y_train_score[:, -1], average='macro'),
+            Report.ROC_AUC: roc_auc_score(dataset.y_test, y_test_score[:, -1], average='macro'),
             Report.CLASSIFICATION_REPORT: classification_report(dataset.y_test, predicted_y_test,
                                                                 zero_division=0, output_dict=True)
         }
