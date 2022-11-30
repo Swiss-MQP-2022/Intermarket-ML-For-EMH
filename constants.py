@@ -25,8 +25,8 @@ class Model(str, Enum):
 
 
 class Report(str, Enum):
-    CLASSIFICATION_REPORT = 'classification report'
-    ROC = 'roc'
+    CLASSIFICATION_REPORT = 'classification-report'
+    ROC_AUC = 'roc-auc'
 
 
 DataDict = dict[str, dict[str, pd.DataFrame]]

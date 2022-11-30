@@ -12,7 +12,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import LinearSVC
 from sklearn.neighbors import KNeighborsClassifier as KNN
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import classification_report, roc_curve
+from sklearn.metrics import classification_report, roc_auc_score
 from sklearn.dummy import DummyClassifier
 from sklearn.calibration import CalibratedClassifierCV
 
@@ -51,12 +51,12 @@ def fit_single_model(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDatas
     # Update report dictionary with results
     report_dict[model_trainer.name][dataset.name] = {
         DataSplit.TRAIN: {
-            Report.ROC: roc_curve(dataset.y_test, y_test_score[:, -1]),
+            Report.ROC_AUC: roc_auc_score(dataset.y_test, y_test_score[:, -1], average='macro'),
             Report.CLASSIFICATION_REPORT: classification_report(dataset.y_train, predicted_y_train,
                                                                 zero_division=0, output_dict=True)
         },
         DataSplit.TEST: {
-            Report.ROC: roc_curve(dataset.y_train, y_train_score[:, -1]),
+            Report.ROC_AUC: roc_auc_score(dataset.y_train, y_train_score[:, -1], average='macro'),
             Report.CLASSIFICATION_REPORT: classification_report(dataset.y_test, predicted_y_test,
                                                                 zero_division=0, output_dict=True)
         }
@@ -86,12 +86,12 @@ def fit_consensus_baseline(dataset_list: list[TimeSeriesDataset],
 
         report_dict[baseline][dataset.name] = {
             DataSplit.TRAIN: {
-                Report.ROC: np.nan,
+                Report.ROC_AUC: np.nan,
                 Report.CLASSIFICATION_REPORT: classification_report(*align_data(train_consensus, dataset.y_train),
                                                                     zero_division=0, output_dict=True)
             },
             DataSplit.TEST: {
-                Report.ROC: np.nan,
+                Report.ROC_AUC: np.nan,
                 Report.CLASSIFICATION_REPORT: classification_report(*align_data(test_consensus, dataset.y_test),
                                                                     zero_division=0, output_dict=True)
             }
@@ -139,8 +139,11 @@ def start_new_model_process(model_trainer: ScikitModelTrainer, dataset: TimeSeri
     new_process.start()  # start process
 
 
-if __name__ == '__main__':
-    # Initialize option parser for optional multiprocessing parameter
+def initialize_option_parser():
+    """
+    Initializes the option parser for the main script
+    :return: parser
+    """
     parser = OptionParser(option_class=OptionWithModel)
     parser.add_option('-p', '--processes',
                       action='store',
@@ -168,6 +171,13 @@ if __name__ == '__main__':
                       default=False,
                       dest='use_uuid',
                       help='Appends a unique identifier the output directory')
+
+    return parser
+
+
+if __name__ == '__main__':
+    # Initialize option parser for optional multiprocessing parameter
+    parser = initialize_option_parser()
     options, _ = parser.parse_args()
 
     if options.use_uuid:

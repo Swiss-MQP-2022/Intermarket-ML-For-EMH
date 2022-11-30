@@ -348,7 +348,7 @@ def make_row_from_report(reports: dict, model: Model, dataset: str, split: DataS
             if isinstance(metric, tuple)
             else data[Report.CLASSIFICATION_REPORT][metric]
             for metric in METRICS.values()]
-    row += [data[Report.ROC]]
+    row += [data[Report.ROC_AUC]]
 
     return row
 
@@ -366,7 +366,7 @@ def encode_results(reports) -> pd.DataFrame:
               list(DATASET_SYMBOLS.keys()) + \
               ['SPY', 'Random', 'Test'] + \
               list(METRICS.keys()) + \
-              [Report.ROC.value]
+              [Report.ROC_AUC.value]
 
     # Properly encode results into useful format
     results = [make_row_from_report(reports, model, dataset, split)
