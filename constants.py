@@ -48,13 +48,13 @@ DATASET_SYMBOLS = {
              ('bond', 'JP5Y.GBOND'),
              ('future', 'US.COMM')],
 
-    'index-futures': [('future', 'ES.COMM'),
+    'index_futures': [('future', 'ES.COMM'),
                       ('future', 'NK.COMM'),
                       ('future', 'HSI.COMM'),
                       ('future', 'FESX.COMM'),
                       ('future', 'VIX.COMM')],
 
-    'commodities-futures': [('future', 'GC.COMM'),
+    'commodities_futures': [('future', 'GC.COMM'),
                             ('future', 'NG.COMM'),
                             ('future', 'ZC.COMM'),
                             ('future', 'ZS.COMM')]

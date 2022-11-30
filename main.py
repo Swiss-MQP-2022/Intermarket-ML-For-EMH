@@ -17,8 +17,9 @@ from sklearn.dummy import DummyClassifier
 from sklearn.calibration import CalibratedClassifierCV
 
 from dataset import build_datasets, TimeSeriesDataset
+from stats import run_test
 from trainer import ScikitModelTrainer
-from utils import OptionWithModel, align_data, compute_consensus, encode_results, save_metrics
+from utils import OptionWithModel, align_data, compute_consensus, encode_results, save_results
 from constants import ConsensusBaseline, CONSENSUS_BASELINES, DataSplit, Model, Report
 
 POLLING_RATE = 30  # Rate in seconds to poll changes in process status
@@ -178,6 +179,8 @@ if __name__ == '__main__':
     if options.use_uuid:
         options.out_dir += rf'_{uuid.uuid4()}'
 
+    Path(options.out_dir).mkdir(parents=True, exist_ok=True)  # create output directory if it doesn't exist
+
     # n_jobs parameter sklearn (must be 1 when using multiprocessing)
     n_jobs = 1 if options.processes is not None else -1
 
@@ -258,6 +261,6 @@ if __name__ == '__main__':
     print(results)
 
     # Save metrics
-    save_metrics(results, options.model, out_dir=options.out_dir)
+    save_results(results, options.model, out_dir=options.out_dir)
 
     print('Done!')

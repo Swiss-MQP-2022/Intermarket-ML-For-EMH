@@ -364,7 +364,7 @@ def encode_results(reports) -> pd.DataFrame:
     # Get column names
     columns = [model.value for model in Model] + \
               list(DATASET_SYMBOLS.keys()) + \
-              ['SPY', 'Random', 'Test'] + \
+              ['SPY', 'Random', DataSplit.TEST.value] + \
               list(METRICS.keys()) + \
               [Report.ROC_AUC.value]
 
@@ -377,7 +377,7 @@ def encode_results(reports) -> pd.DataFrame:
     return pd.DataFrame(results, columns=columns)
 
 
-def save_metrics(data: pd.DataFrame, model: Model = None, out_dir=r'./out'):
+def save_results(data: pd.DataFrame, model: Model = None, out_dir=r'./out'):
     """
     Generate CSVs of desired metrics
     :param data: dataframe containing metric data
