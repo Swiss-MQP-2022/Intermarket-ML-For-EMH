@@ -39,7 +39,7 @@ def fit_single_model(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDatas
     clf = model_trainer.train(dataset.X_train, dataset.y_train)
 
     # https://stackoverflow.com/questions/26478000/converting-linearsvcs-decision-function-to-probabilities-scikit-learn-python
-    if model_trainer.name == 'SVC':  # Workaround for LinearSVC not implementing predict_proba
+    if model_trainer.name == Model.SUPPORT_VECTOR_MACHINE:  # Workaround for LinearSVC not implementing predict_proba
         clf = CalibratedClassifierCV(clf, cv='prefit')
         clf.fit(dataset.X_test, dataset.y_test)
 
