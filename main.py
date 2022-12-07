@@ -27,7 +27,7 @@ POLLING_RATE = 30  # Rate in seconds to poll changes in process status
 def fit_single_model(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDataset, report_dict: dict[str, dict]):
     """
     Fit a single model on the provided dataset and report results
-    :param model_trainer: model-trainer to fit
+    :param model_trainer: model trainer to use
     :param dataset: dataset to fit to
     :param report_dict: dictionary to save results to
     """
@@ -126,9 +126,9 @@ def wait_for_processes(wait_threshold: int, polling_rate: int):
 
 def start_new_model_process(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDataset):
     """
-    Starts a new model-training process
+    Starts a new model-fitting process
     NOTE: adds the newly created process to process_list
-    :param model_trainer: ScikitModelTrainer to fit
+    :param model_trainer: ScikitModelTrainer to use
     :param dataset: dataset to fit model on
     """
     global process_list, reports
@@ -170,21 +170,15 @@ def initialize_option_parser():
     return parser
 
 
-if __name__ == '__main__':
-    # Initialize option parser for optional multiprocessing parameter
-    parser = initialize_option_parser()
-    options, _ = parser.parse_args()
+def get_model_trainer_params(model: Model = None, n_jobs: int = -1):
+    """
+    Initialize model trainer parameters
+    :param model: desired model to get parameters for. Provides all models of None, empty dict if in CONSENSUS_BASELINES
+    :param n_jobs: n_jobs parameter to pass to models which support parallel processing
+    :return: dictionary of model trainer parameters
+    """
 
-    if options.use_uuid:
-        options.out_dir += rf'_{uuid.uuid4()}'
-
-    Path(options.out_dir).mkdir(parents=True, exist_ok=True)  # create output directory if it doesn't exist
-
-    # n_jobs parameter sklearn (must be 1 when using multiprocessing)
-    n_jobs = 1 if options.processes is not None else -1
-
-    # Initialize estimators and parameters to use for experiments
-    models = {
+    param_dict = {
         Model.DECISION_TREE: dict(estimator=DecisionTreeClassifier(),
                                   param_grid=dict(splitter=['best', 'random'],
                                                   max_depth=[5, 10, 25, None],
@@ -215,15 +209,34 @@ if __name__ == '__main__':
     }
 
     # Specific model selected
-    if options.model is not None:
-        if options.model in CONSENSUS_BASELINES:  # selected model requires manual calculation
-            models = {}
-        else:  # desired model can use automatic fitting
-            models = {options.model: models[options.model]}
+    if model is not None:
+        if model in CONSENSUS_BASELINES:  # consensus model requires manual calculation, no parameters needed
+            return {}
+        else:  # only provide parameters for desired model
+            return {model: param_dict[model]}
+    else:  # provide parameters for all models
+        return param_dict
+
+
+if __name__ == '__main__':
+    # Initialize option parser for optional multiprocessing parameter
+    parser = initialize_option_parser()
+    options, _ = parser.parse_args()
+
+    if options.use_uuid:
+        options.out_dir += rf'_{uuid.uuid4()}'
+
+    Path(options.out_dir).mkdir(parents=True, exist_ok=True)  # create output directory if it doesn't exist
+
+    # n_jobs parameter sklearn (must be 1 when using multiprocessing)
+    n_jobs = 1 if options.processes is not None else -1
+
+    # Initialize estimators and parameters to use for experiments
+    models = get_model_trainer_params(options.model, n_jobs)
 
     # Construct datasets to experiment on
     datasets = build_datasets(period=5,
-                              brn_features=5,
+                              rand_features=5,
                               test_size=0.2,
                               zero_col_thresh=0.25,
                               replace_zero=-1)
@@ -234,14 +247,13 @@ if __name__ == '__main__':
 
     # Model experimentation
     for model_name, model in models.items():  # For each model
-        trainer = ScikitModelTrainer(**model, n_jobs=n_jobs,
-                                     name=model_name.value)  # Initialize a trainer for the model
+        trainer = ScikitModelTrainer(**model, n_jobs=n_jobs, name=model_name)  # Initialize a trainer for the model
         reports[trainer.name] = mp.Manager().dict()  # Initialize dictionary for reports associated with model
 
         for data in datasets:  # For each dataset
             if options.processes is not None:  # Use multiprocessing if enabled
                 wait_for_processes(options.processes, POLLING_RATE)  # Wait for acceptable number of running processes
-                start_new_model_process(trainer, data)  # Start a new training process
+                start_new_model_process(trainer, data)  # Start a new fitting process
             else:  # Do not use multiprocessing
                 fit_single_model(trainer, data, reports)  # Fit a single model in the current process
 
