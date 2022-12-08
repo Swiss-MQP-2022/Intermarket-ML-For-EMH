@@ -62,7 +62,7 @@ def fit_consensus_baseline(dataset_list: list[TimeSeriesDataset],
     :param baseline: desired baseline
     :param replication: replication identifier for this experiment (None indicates unreplicated)
     """
-    print(f'Generating {baseline}{f" (Replication {replication})" if replication is not None else ""}...')
+    print(f'Generating {baseline}{f" (Replication {replication}, PID {os.getpid()})" if replication is not None else ""}...')
 
     report_dict[baseline] = {}
     for dataset in dataset_list:
@@ -79,7 +79,7 @@ def fit_consensus_baseline(dataset_list: list[TimeSeriesDataset],
                                                   zero_division=0, output_dict=True)
         }
 
-    print(f'Done generating {baseline}{f" (Replication {replication})" if replication is not None else ""}')
+    print(f'Done generating {baseline}{f" (Replication {replication}, PID {os.getpid()})" if replication is not None else ""}')
 
 
 def start_new_model_process(model_trainer: ScikitModelTrainer,
@@ -144,7 +144,7 @@ def run_experiment(model_params: dict[Model, dict],
     :param replication: replication identifier for this experiment (None indicates unreplicated)
     """
 
-    print(f'Beginning experiment{" (Replication {})".format(replication) if replication is not None else ""}...')
+    print(f'Beginning experiment{f" (Replication {replication}, PID {os.getpid()})" if replication is not None else ""}...')
 
     # Specific model selected
     if selected_model is not None:
@@ -187,7 +187,7 @@ def run_experiment(model_params: dict[Model, dict],
     # Save metrics
     save_results(results, selected_model, out_dir=out_dir, prefix=replication)
 
-    print(f'Experiment completed!{f" (Replication {replication})" if replication is not None else ""}')
+    print(f'Experiment completed!{f" (Replication {replication}, PID {os.getpid()})" if replication is not None else ""}')
 
 
 def get_model_trainer_params(n_jobs: int = -1):
