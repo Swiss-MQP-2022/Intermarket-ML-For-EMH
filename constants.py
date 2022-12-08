@@ -62,3 +62,5 @@ METRICS = {
     'Weighted F1': ('weighted avg', 'f1-score'),
     'Macro F1': ('macro avg', 'f1-score')
 }
+
+POLLING_RATE = 30  # Rate in seconds to poll changes in process status

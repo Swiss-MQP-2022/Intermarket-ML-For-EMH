@@ -297,16 +297,18 @@ def encode_results(reports) -> pd.DataFrame:
     return pd.DataFrame(results, columns=columns)
 
 
-def save_results(data: pd.DataFrame, model: Model = None, out_dir=r'./out'):
+def save_results(data: pd.DataFrame, model: Model = None, out_dir=r'./out', prefix=None):
     """
     Generate CSVs of desired metrics
     :param data: dataframe containing metric data
     :param model: associated model (prefix for filename)
     :param out_dir: directory to save CSVs
+    :param prefix: prefix to add to filename before "results" extension (used for denoting replications)
     """
-    print('Saving metrics...')
+    print('Saving results...')
 
     model_name = f'{model.value}_' if model is not None else ''
+    prefix = f'{prefix}_' if prefix is not None else ''
 
     # Save metrics to csv
-    data.to_csv(rf'{out_dir}/{make_filename_safe(model_name)}results.csv')
+    data.to_csv(rf'{out_dir}/{make_filename_safe(model_name)}{prefix}results.csv')

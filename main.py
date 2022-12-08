@@ -18,21 +18,20 @@ from sklearn.dummy import DummyClassifier
 from dataset import build_datasets, TimeSeriesDataset
 from trainer import ScikitModelTrainer
 from utils import OptionWithModel, align_data, compute_consensus, encode_results, save_results
-from constants import ConsensusBaseline, CONSENSUS_BASELINES, DataSplit, Model
-
-POLLING_RATE = 30  # Rate in seconds to poll changes in process status
+from constants import ConsensusBaseline, CONSENSUS_BASELINES, DataSplit, Model, POLLING_RATE
 
 
-def fit_single_model(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDataset, report_dict: dict[str, dict]):
+def fit_single_model(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDataset, report_dict: dict[str, dict], replication: int = None):
     """
     Fit a single model on the provided dataset and report results
     :param model_trainer: model trainer to use
     :param dataset: dataset to fit to
-    :param report_dict: dictionary to save results to
+    :param report_dict: dictionary to save results in
+    :param replication: replication identifier for this experiment (None indicates unreplicated)
     """
     print(f'Fitting {model_trainer.name} on {dataset.name}'
           f'{" using GridSearchCV" if model_trainer.use_grid_search else ""}'
-          f' (PID {os.getpid()})...')
+          f' ({f"Replication {replication}, " if replication is not None else ""}PID {os.getpid()})...')
 
     # Train/fit provided model trainer on the provided dataset
     clf = model_trainer.train(dataset.X_train, dataset.y_train)
@@ -48,19 +47,22 @@ def fit_single_model(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDatas
                                               zero_division=0, output_dict=True)
     }
 
-    print(f'Done fitting {model_trainer.name} on {dataset.name} (PID {os.getpid()})')
+    print(f'Done fitting {model_trainer.name} on {dataset.name} '
+          f'({f"Replication {replication}, " if replication is not None else ""}PID {os.getpid()})')
 
 
 def fit_consensus_baseline(dataset_list: list[TimeSeriesDataset],
                            report_dict: dict[str, dict],
-                           baseline: ConsensusBaseline):
+                           baseline: ConsensusBaseline,
+                           replication: int = None):
     """
     Fit and record results for the Consensus Baseline (Previous Baseline is period=1)
     :param dataset_list: list of datasets to fit on
     :param report_dict: dictionary to save reports to
     :param baseline: desired baseline
+    :param replication: replication identifier for this experiment (None indicates unreplicated)
     """
-    print(f'Generating {baseline}...')
+    print(f'Generating {baseline}{f" (Replication {replication})" if replication is not None else ""}...')
 
     report_dict[baseline] = {}
     for dataset in dataset_list:
@@ -77,19 +79,40 @@ def fit_consensus_baseline(dataset_list: list[TimeSeriesDataset],
                                                   zero_division=0, output_dict=True)
         }
 
-    print(f'Done generating {baseline}')
+    print(f'Done generating {baseline}{f" (Replication {replication})" if replication is not None else ""}')
 
 
-def wait_for_processes(wait_threshold: int, polling_rate: int):
+def start_new_model_process(model_trainer: ScikitModelTrainer,
+                            dataset: TimeSeriesDataset,
+                            process_list: list[mp.Process],
+                            reports: dict[Model, dict[str, dict[DataSplit]]],
+                            replication: int = None):
+    """
+    Starts a new model-fitting process
+    NOTE: adds the newly created process to process_list
+    :param model_trainer: ScikitModelTrainer to use
+    :param dataset: dataset to fit model on
+    :param process_list: list of processes to add to
+    :param reports: dictionary of reports to save results in
+    :param replication: replication identifier for this experiment (None indicates unreplicated)
+    """
+    # Create process to fit a single model
+    new_process = mp.Process(target=fit_single_model,
+                             args=(model_trainer, dataset, reports, replication),
+                             daemon=True)
+    process_list.append(new_process)  # add process to process list
+    new_process.start()  # start process
+
+
+def wait_for_processes(process_list: list[mp.Process], wait_threshold: int, polling_rate: int):
     """
     Wait until the number of outstanding processes is below a specified amount
     NOTE: closes any processes that terminate and removes them from process_list
     NOTE: WILL ALWAYS CHECK FOR AND CLOSE ANY DEAD PROCESSES AT LEAST ONCE
+    :param process_list: list of processes to wait on
     :param wait_threshold: minimum number of processes require waiting (never waits if wait_threshold is -1)
     :param polling_rate: rate (in seconds) to poll if any processes terminated
     """
-    global process_list
-
     wait = True  # flag to continue waiting. Used to emulate a do-while loop
     while wait:  # While we need to wait for processes to finish
         for process in process_list:  # for each remaining process
@@ -104,61 +127,77 @@ def wait_for_processes(wait_threshold: int, polling_rate: int):
             sleep(polling_rate)
 
 
-def start_new_model_process(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDataset):
+def run_experiment(model_params: dict[Model, dict],
+                   datasets: list[TimeSeriesDataset],
+                   selected_model: Model,
+                   processes: int, n_jobs: int,
+                   out_dir: str,
+                   replication: int = None):
     """
-    Starts a new model-fitting process
-    NOTE: adds the newly created process to process_list
-    :param model_trainer: ScikitModelTrainer to use
-    :param dataset: dataset to fit model on
+    Run a single experiment replication
+    :param model_params: model parameters to use
+    :param datasets: datasets to run experiment on
+    :param selected_model: specific model to test (test all if None)
+    :param processes: maximum number of concurrent processes to use
+    :param n_jobs: n_jobs parameter to pass to scikit-learn models
+    :param out_dir: directory to save results to
+    :param replication: replication identifier for this experiment (None indicates unreplicated)
     """
-    global process_list, reports
 
-    # Create process to fit a single model
-    new_process = mp.Process(target=fit_single_model, args=(model_trainer, dataset, reports), daemon=True)
-    process_list.append(new_process)  # add process to process list
-    new_process.start()  # start process
+    print(f'Beginning experiment{" (Replication {})".format(replication) if replication is not None else ""}...')
+
+    # Specific model selected
+    if selected_model is not None:
+        if selected_model in CONSENSUS_BASELINES:  # consensus model requires manual calculation, no parameters needed
+            model_params = {}
+        else:  # only provide parameters for desired model
+            model_params = {selected_model: model_params[selected_model]}
+
+    # Dictionary which stores result data from experiments
+    reports = {}  # Organized as reports[model name][dataset name][split]
+    process_list = []  # List of processes (used for multiprocessing)
+
+    # Model experimentation
+    for model_name, model in model_params.items():  # For each model
+        trainer = ScikitModelTrainer(**model, n_jobs=n_jobs, name=model_name)  # Initialize a trainer for the model
+        reports[trainer.name] = mp.Manager().dict()  # Initialize dictionary for reports associated with model
+
+        for data in datasets:  # For each dataset
+            if processes is None:  # multiprocessing not requested
+                fit_single_model(trainer, data, reports, replication)  # Fit a single model in the current process
+            else:  # multiprocessing enabled
+                wait_for_processes(process_list, processes,
+                                   POLLING_RATE)  # Wait for acceptable number of running processes
+                start_new_model_process(trainer, data, process_list, reports, replication)  # Start a new fitting process
+
+    wait_for_processes(process_list, 1, POLLING_RATE)  # Wait for any still-running processes to terminate
+
+    # Consensus baselines
+    if selected_model is None:  # no model selected
+        for baseline in CONSENSUS_BASELINES:  # fit all consensus baselines
+            fit_consensus_baseline(datasets, reports, baseline, replication)
+    elif selected_model in CONSENSUS_BASELINES:  # consensus baseline selected as model
+        fit_consensus_baseline(datasets, reports, selected_model, replication)  # fit desired baseline
+
+    # RESULT REPORTING
+    results = encode_results(reports)
+
+    # print(results)
+
+    # Save metrics
+    save_results(results, selected_model, out_dir=out_dir, prefix=replication)
+
+    print(f'Experiment completed!{f" (Replication {replication})" if replication is not None else ""}')
 
 
-def initialize_option_parser():
-    """
-    Initializes the option parser for the main script
-    :return: parser
-    """
-    parser = OptionParser(option_class=OptionWithModel)
-    parser.add_option('-p', '--processes',
-                      action='store',
-                      type='int',
-                      dest='processes',
-                      help='Use multiprocessing when fitting models')
-    parser.add_option('-m', '--model',
-                      action='store',
-                      type='model_name',
-                      dest='model',
-                      help='Singular model to train')
-    parser.add_option('-o', '--out-dir',
-                      action='store',
-                      type='str',
-                      default='./out',
-                      dest='out_dir',
-                      help='Path to directory to save output files to')
-    parser.add_option('-u', '--use-uuid',
-                      action='store_true',
-                      default=False,
-                      dest='use_uuid',
-                      help='Appends a unique identifier the output directory')
-
-    return parser
-
-
-def get_model_trainer_params(model: Model = None, n_jobs: int = -1):
+def get_model_trainer_params(n_jobs: int = -1):
     """
     Initialize model trainer parameters
-    :param model: desired model to get parameters for. Provides all models of None, empty dict if in CONSENSUS_BASELINES
     :param n_jobs: n_jobs parameter to pass to models which support parallel processing
     :return: dictionary of model trainer parameters
     """
 
-    param_dict = {
+    return {
         Model.DECISION_TREE: dict(estimator=DecisionTreeClassifier(),
                                   param_grid=dict(splitter=['best', 'random'],
                                                   max_depth=[5, 10, 25, None],
@@ -188,14 +227,46 @@ def get_model_trainer_params(model: Model = None, n_jobs: int = -1):
         Model.RANDOM_BASELINE: dict(estimator=DummyClassifier(strategy='uniform', random_state=0)),
     }
 
-    # Specific model selected
-    if model is not None:
-        if model in CONSENSUS_BASELINES:  # consensus model requires manual calculation, no parameters needed
-            return {}
-        else:  # only provide parameters for desired model
-            return {model: param_dict[model]}
-    else:  # provide parameters for all models
-        return param_dict
+
+def initialize_option_parser():
+    """
+    Initializes the option parser for the main script
+    :return: the option parser
+    """
+    parser = OptionParser(option_class=OptionWithModel)
+    parser.add_option('-p', '--processes',
+                      action='store',
+                      type='int',
+                      dest='processes',
+                      help='Number of processes to use PER REPLICATION. '
+                           'Unlimited processes if no number is provided. '
+                           '1 process per replication if option is not present. ')
+    parser.add_option('-m', '--model',
+                      action='store',
+                      type='model_name',
+                      dest='model',
+                      help='Singular model to train')
+    parser.add_option('-o', '--out-dir',
+                      action='store',
+                      type='str',
+                      default='./out',
+                      dest='out_dir',
+                      help='Path to directory to save output files to')
+    parser.add_option('-u', '--use-uuid',
+                      action='store_true',
+                      default=False,
+                      dest='use_uuid',
+                      help='Appends a unique identifier the output directory')
+    parser.add_option('-r', '--replications',
+                      action='store',
+                      type='int',
+                      dest='replications',
+                      help='Number of replications to perform. '
+                           'Note: Each replication is given a dedicated process. '
+                           'As a result, the n_jobs parameter for supported scikit-learn models will be set to 1. '
+                           'Therefore combining this option with -p/--processes is recommended.')
+
+    return parser
 
 
 if __name__ == '__main__':
@@ -205,14 +276,15 @@ if __name__ == '__main__':
 
     if options.use_uuid:
         options.out_dir += rf'_{uuid.uuid4()}'
+        print(f'Unique output directory requested. Using {options.out_dir}')
 
     Path(options.out_dir).mkdir(parents=True, exist_ok=True)  # create output directory if it doesn't exist
 
-    # n_jobs parameter sklearn (must be 1 when using multiprocessing)
-    n_jobs = 1 if options.processes is not None else -1
+    # n_jobs parameter for scikit-learn models (must be 1 when using multiprocessing)
+    n_jobs = 1 if options.processes is not None or options.replications is not None else -1
 
     # Initialize estimators and parameters to use for experiments
-    models = get_model_trainer_params(options.model, n_jobs)
+    model_params = get_model_trainer_params(n_jobs)
 
     # Construct datasets to experiment on
     datasets = build_datasets(period=5,
@@ -221,37 +293,19 @@ if __name__ == '__main__':
                               zero_col_thresh=0.25,
                               replace_zero=-1)
 
-    # Dictionary which stores result data from experiments
-    reports = {}  # Organized as reports[model name][dataset name][split][report type]
-    process_list = []  # List of processes (used for multiprocessing)
+    if options.replications is None:  # no replications requested
+        run_experiment(model_params, datasets, options.model, options.processes, n_jobs, options.out_dir)
+    else:  # replication requested
+        replication_processes = []  # list of processes for each replication
+        for replication in range(options.replications):  # for each replication
+            new_experiment = mp.Process(target=run_experiment,  # create a process for the replication
+                                        args=(model_params, datasets, options.model, options.processes, n_jobs,
+                                              options.out_dir, replication),
+                                        daemon=False)
+            replication_processes.append(new_experiment)  # add replication process to list
+            new_experiment.start()  # run replication
 
-    # Model experimentation
-    for model_name, model in models.items():  # For each model
-        trainer = ScikitModelTrainer(**model, n_jobs=n_jobs, name=model_name)  # Initialize a trainer for the model
-        reports[trainer.name] = mp.Manager().dict()  # Initialize dictionary for reports associated with model
+        # wait for ALL replications to complete
+        wait_for_processes(replication_processes, 1, POLLING_RATE)
 
-        for data in datasets:  # For each dataset
-            if options.processes is not None:  # Use multiprocessing if enabled
-                wait_for_processes(options.processes, POLLING_RATE)  # Wait for acceptable number of running processes
-                start_new_model_process(trainer, data)  # Start a new fitting process
-            else:  # Do not use multiprocessing
-                fit_single_model(trainer, data, reports)  # Fit a single model in the current process
-
-    wait_for_processes(1, POLLING_RATE)  # Wait for any still-running processes to terminate
-
-    # Consensus baselines
-    if options.model is None:  # no model selected
-        for baseline in CONSENSUS_BASELINES:  # fit all consensus baselines
-            fit_consensus_baseline(datasets, reports, baseline)
-    elif options.model in CONSENSUS_BASELINES:  # consensus baseline selected as model
-        fit_consensus_baseline(datasets, reports, options.model)  # fit desired baseline
-
-    # RESULT REPORTING
-    results = encode_results(reports)
-
-    print(results)
-
-    # Save metrics
-    save_results(results, options.model, out_dir=options.out_dir)
-
-    print('Done!')
+    print('All experiments completed!\nExiting...')
