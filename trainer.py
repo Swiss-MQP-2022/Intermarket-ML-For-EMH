@@ -3,19 +3,15 @@ from typing import Union
 from sklearn.model_selection import TimeSeriesSplit, GridSearchCV, BaseCrossValidator
 
 from utils import Estimator
+from constants import Model
 
 
 class ScikitModelTrainer:
-    def __init__(self,
-                 estimator: Estimator,
-                 param_grid: dict[str, any] = None,
-                 scoring='f1_macro',  # Currently forcing string-specified scorers only
-                 n_jobs: int = -1,
-                 cv: Union[int, BaseCrossValidator] = 5,
-                 name: str = None,
-                 **gs_kws: dict[str, any]):
+    def __init__(self, estimator: Estimator, name: Model, param_grid: dict[str, any] = None, scoring='f1_macro',
+                 n_jobs: int = -1, cv: Union[int, BaseCrossValidator] = 5, **gs_kws: dict[str, any]):
         """
         :param estimator: Scikit-Learn estimator to fit
+        :param name: name of model used (from Model enum)
         :param param_grid: parameter grid to search using GridSearchCV. Fit estimator directly if None (default)
         :param scoring: scoring technique to use in GridSearchCV
         :param n_jobs: jobs to use in GridSearchCV

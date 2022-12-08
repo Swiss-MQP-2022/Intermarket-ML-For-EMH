@@ -12,7 +12,7 @@ from sklearn.preprocessing import StandardScaler
 
 import utils
 from utils import Scaler
-from constants import DataDict, AssetID, DATASET_SYMBOLS, DUMMY_SCALER
+from constants import DataDict, AssetID, DATASET_SYMBOLS
 
 
 class TimeSeriesDataset:
@@ -21,7 +21,7 @@ class TimeSeriesDataset:
                  y: Union[np.ndarray, pd.DataFrame, pd.Series],
                  period=5,
                  test_size=0.2,
-                 scaler: Scaler = DUMMY_SCALER,
+                 scaler: Scaler = None,
                  fit=True,
                  flatten=True,
                  name=None,
@@ -45,9 +45,10 @@ class TimeSeriesDataset:
         # get the indices of end of the training set / start of the testing set
         train_end = test_start = floor(len(X) * (1 - test_size))
 
-        if fit:
-            self.scaler.fit(X[:train_end])  # fit the scaler to the training data
-        X = self.scaler.transform(X)  # scale the data
+        if scaler is not None:
+            if fit:
+                self.scaler.fit(X[:train_end])  # fit the scaler to the training data
+            X = self.scaler.transform(X)  # scale the data
 
         if isinstance(X, (pd.DataFrame, pd.Series)):  # Convert to numpy if DataFrame or Series
             X = X.to_numpy()

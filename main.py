@@ -12,16 +12,18 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import LinearSVC
 from sklearn.neighbors import KNeighborsClassifier as KNN
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, roc_auc_score
 from sklearn.dummy import DummyClassifier
+from sklearn.calibration import CalibratedClassifierCV
 
 from dataset import build_datasets, TimeSeriesDataset
 from trainer import ScikitModelTrainer
 from utils import OptionWithModel, align_data, compute_consensus, encode_results, save_results
-from constants import ConsensusBaseline, CONSENSUS_BASELINES, DataSplit, Model, POLLING_RATE
+from constants import ConsensusBaseline, DataSplit, Model, ReportDict, Metric
+from constants import CONSENSUS_BASELINES, POLLING_RATE, CLR_KEYS
 
 
-def fit_single_model(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDataset, report_dict: dict[str, dict], replication: int = None):
+def fit_single_model(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDataset, report_dict: ReportDict, replication: int = None):
     """
     Fit a single model on the provided dataset and report results
     :param model_trainer: model trainer to use
@@ -36,15 +38,36 @@ def fit_single_model(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDatas
     # Train/fit provided model trainer on the provided dataset
     clf = model_trainer.train(dataset.X_train, dataset.y_train)
 
+    # https://stackoverflow.com/questions/26478000/converting-linearsvcs-decision-function-to-probabilities-scikit-learn-python
+    if model_trainer.name == Model.SUPPORT_VECTOR_MACHINE:  # Workaround for LinearSVC not implementing predict_proba
+        clf = CalibratedClassifierCV(clf, cv='prefit')
+        clf.fit(dataset.X_test, dataset.y_test)
+
     predicted_y_train = clf.predict(dataset.X_train)  # Get prediction of fitted model on training set (in-sample)
     predicted_y_test = clf.predict(dataset.X_test)  # Get prediction of fitted model on test set (out-sample)
+    y_train_score = clf.predict_proba(dataset.X_train)  # Get probabilities for predictions on training set (for ROC)
+    y_test_score = clf.predict_proba(dataset.X_test)  # Get probabilities for predictions on test set (for ROC)
+
+    train_clr = classification_report(dataset.y_train, predicted_y_train,
+                                      zero_division=0, output_dict=True)
+    test_clr = classification_report(dataset.y_test, predicted_y_test,
+                                     zero_division=0, output_dict=True)
+
+    train_roc_auc = roc_auc_score(dataset.y_train, y_train_score[:, -1], average='macro')
+    test_roc_auc = roc_auc_score(dataset.y_test, y_test_score[:, -1], average='macro')
 
     # Update report dictionary with results
     report_dict[model_trainer.name][dataset.name] = {
-        DataSplit.TRAIN: classification_report(dataset.y_train, predicted_y_train,
-                                               zero_division=0, output_dict=True),
-        DataSplit.TEST: classification_report(dataset.y_test, predicted_y_test,
-                                              zero_division=0, output_dict=True)
+        DataSplit.TRAIN: {metric: (
+            train_roc_auc if metric == Metric.ROC_AUC
+            else train_clr[keys[0]][keys[1]] if isinstance(keys, tuple)
+            else train_clr[keys])
+            for metric, keys in CLR_KEYS.items()},
+        DataSplit.TEST: {metric: (
+            test_roc_auc if metric == Metric.ROC_AUC
+            else test_clr[keys[0]][keys[1]] if isinstance(keys, tuple)
+            else test_clr[keys])
+            for metric, keys in CLR_KEYS.items()}
     }
 
     print(f'Done fitting {model_trainer.name} on {dataset.name} '
@@ -72,11 +95,22 @@ def fit_consensus_baseline(dataset_list: list[TimeSeriesDataset],
         train_consensus = compute_consensus(dataset.y_train.shift(1).iloc[1:], period)
         test_consensus = compute_consensus(dataset.y_test.shift(1).iloc[1:], period)
 
+        train_clr = classification_report(*align_data(train_consensus, dataset.y_train),
+                                          zero_division=0, output_dict=True)
+        test_clr = classification_report(*align_data(test_consensus, dataset.y_test),
+                                         zero_division=0, output_dict=True)
+
         report_dict[baseline][dataset.name] = {
-            DataSplit.TRAIN: classification_report(*align_data(train_consensus, dataset.y_train),
-                                                   zero_division=0, output_dict=True),
-            DataSplit.TEST: classification_report(*align_data(test_consensus, dataset.y_test),
-                                                  zero_division=0, output_dict=True)
+            DataSplit.TRAIN: {metric: (
+                np.NaN if metric == Metric.ROC_AUC
+                else train_clr[keys[0]][keys[1]] if isinstance(keys, tuple)
+                else train_clr[keys])
+                for metric, keys in CLR_KEYS.items()},
+            DataSplit.TEST: {metric: (
+                np.NaN if metric == Metric.ROC_AUC
+                else test_clr[keys[0]][keys[1]] if isinstance(keys, tuple)
+                else test_clr[keys])
+                for metric, keys in CLR_KEYS.items()}
         }
 
     print(f'Done generating {baseline}{f" (Replication {replication}, PID {os.getpid()})" if replication is not None else ""}')
@@ -85,7 +119,7 @@ def fit_consensus_baseline(dataset_list: list[TimeSeriesDataset],
 def start_new_model_process(model_trainer: ScikitModelTrainer,
                             dataset: TimeSeriesDataset,
                             process_list: list[mp.Process],
-                            reports: dict[Model, dict[str, dict[DataSplit]]],
+                            reports: ReportDict,
                             replication: int = None):
     """
     Starts a new model-fitting process
@@ -127,19 +161,14 @@ def wait_for_processes(process_list: list[mp.Process], wait_threshold: int, poll
             sleep(polling_rate)
 
 
-def run_experiment(model_params: dict[Model, dict],
-                   datasets: list[TimeSeriesDataset],
-                   selected_model: Model,
-                   processes: int, n_jobs: int,
-                   out_dir: str,
-                   replication: int = None):
+def run_experiment(model_params: dict[Model, dict], datasets: list[TimeSeriesDataset], selected_model: Model,
+                   processes: int, out_dir: str, replication: int = None):
     """
     Run a single experiment replication
     :param model_params: model parameters to use
     :param datasets: datasets to run experiment on
     :param selected_model: specific model to test (test all if None)
     :param processes: maximum number of concurrent processes to use
-    :param n_jobs: n_jobs parameter to pass to scikit-learn models
     :param out_dir: directory to save results to
     :param replication: replication identifier for this experiment (None indicates unreplicated)
     """
@@ -154,12 +183,12 @@ def run_experiment(model_params: dict[Model, dict],
             model_params = {selected_model: model_params[selected_model]}
 
     # Dictionary which stores result data from experiments
-    reports = {}  # Organized as reports[model name][dataset name][split]
+    reports = {}  # ReportDict (see constants.py), organized as reports[Model][dataset name][DataSplit][Metric]
     process_list = []  # List of processes (used for multiprocessing)
 
     # Model experimentation
-    for model_name, model in model_params.items():  # For each model
-        trainer = ScikitModelTrainer(**model, n_jobs=n_jobs, name=model_name)  # Initialize a trainer for the model
+    for model, trainer_params in model_params.items():  # For each model
+        trainer = ScikitModelTrainer(**trainer_params, name=model)  # Initialize a trainer for the model
         reports[trainer.name] = mp.Manager().dict()  # Initialize dictionary for reports associated with model
 
         for data in datasets:  # For each dataset
@@ -202,27 +231,32 @@ def get_model_trainer_params(n_jobs: int = -1):
                                   param_grid=dict(splitter=['best', 'random'],
                                                   max_depth=[5, 10, 25, None],
                                                   min_samples_split=[2, 5, 10, 50],
-                                                  min_samples_leaf=[1, 5, 10])),
+                                                  min_samples_leaf=[1, 5, 10]),
+                                  n_jobs=n_jobs),
         Model.RANDOM_FOREST: dict(estimator=RandomForestClassifier(n_jobs=n_jobs),
                                   param_grid=dict(n_estimators=[50, 100, 500],
                                                   criterion=['gini', 'entropy'],
                                                   max_depth=[5, 10, 25, None],
                                                   min_samples_split=[2, 5, 10, 50],
-                                                  min_samples_leaf=[1, 5, 10])),
-        Model.SUPPORT_VECTOR_MACHINE: dict(estimator=LinearSVC(max_iter=1e6),
-                                           param_grid=dict(penalty=['l1', 'l2'],
-                                                           C=[1, 4, 9, 16, 25],
-                                                           loss=['hinge', 'squared_hinge']),
-                                           error_score=0),
-        Model.K_NEAREST_NEIGHBORS: dict(estimator=KNN(n_jobs=n_jobs),
-                                        param_grid=dict(n_neighbors=[5, 10, 15, 20],
-                                                        weights=['uniform', 'distance'],
-                                                        metric=['l1', 'l2', 'cosine'])),
+                                                  min_samples_leaf=[1, 5, 10]),
+                                  n_jobs=n_jobs),
         Model.LOGISTIC_REGRESSION: dict(estimator=LogisticRegression(max_iter=1e4),
                                         param_grid=dict(penalty=['l1', 'l2'],
                                                         C=np.logspace(-3, 3, 7),
                                                         solver=['newton-cg', 'lbfgs', 'liblinear']),
-                                        error_score=0),
+                                        error_score=0,
+                                        n_jobs=n_jobs),
+        Model.SUPPORT_VECTOR_MACHINE: dict(estimator=LinearSVC(max_iter=1e6),
+                                           param_grid=dict(penalty=['l1', 'l2'],
+                                                           C=[1, 4, 9, 16, 25],
+                                                           loss=['hinge', 'squared_hinge']),
+                                           error_score=0,
+                                           n_jobs=n_jobs),
+        Model.K_NEAREST_NEIGHBORS: dict(estimator=KNN(n_jobs=n_jobs),
+                                        param_grid=dict(n_neighbors=[5, 10, 15, 20],
+                                                        weights=['uniform', 'distance'],
+                                                        metric=['l1', 'l2', 'cosine']),
+                                        n_jobs=n_jobs),
         Model.CONSTANT_BASELINE: dict(estimator=DummyClassifier(strategy='prior')),
         Model.RANDOM_BASELINE: dict(estimator=DummyClassifier(strategy='uniform', random_state=0)),
     }
@@ -294,12 +328,12 @@ if __name__ == '__main__':
                               replace_zero=-1)
 
     if options.replications is None:  # no replications requested
-        run_experiment(model_params, datasets, options.model, options.processes, n_jobs, options.out_dir)
+        run_experiment(model_params, datasets, options.model, options.processes, options.out_dir)
     else:  # replication requested
         replication_processes = []  # list of processes for each replication
         for replication in range(options.replications):  # for each replication
             new_experiment = mp.Process(target=run_experiment,  # create a process for the replication
-                                        args=(model_params, datasets, options.model, options.processes, n_jobs,
+                                        args=(model_params, datasets, options.model, options.processes,
                                               options.out_dir, replication),
                                         daemon=False)
             replication_processes.append(new_experiment)  # add replication process to list
