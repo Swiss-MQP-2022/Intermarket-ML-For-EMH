@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 
-from constants import DATASET_SYMBOLS, DataDict, AssetID, Model, DataSplit, METRICS, Report
+from constants import DATASET_SYMBOLS, DataDict, AssetID, Model, DataSplit, METRICS
 
 
 T = TypeVar('T')
@@ -266,11 +266,10 @@ def make_row_from_report(reports: dict, model: Model, dataset: str, split: DataS
 
     row = encode_model(model) + encode_dataset(dataset)
     row += [split == DataSplit.TEST]
-    row += [data[Report.CLASSIFICATION_REPORT][metric[0]][metric[1]]
+    row += [data[metric[0]][metric[1]]
             if isinstance(metric, tuple)
-            else data[Report.CLASSIFICATION_REPORT][metric]
+            else data[metric]
             for metric in METRICS.values()]
-    row += [data[Report.ROC_AUC]]
 
     return row
 
@@ -287,8 +286,7 @@ def encode_results(reports) -> pd.DataFrame:
     columns = [model for model in Model] + \
               list(DATASET_SYMBOLS.keys()) + \
               ['SPY', 'Random', DataSplit.TEST] + \
-              list(METRICS.keys()) + \
-              [Report.ROC_AUC]
+              list(METRICS.keys())
 
     # Properly encode results into useful format
     results = [make_row_from_report(reports, model, dataset, split)

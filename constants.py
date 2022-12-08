@@ -6,10 +6,10 @@ from sklearn.preprocessing import FunctionTransformer
 
 
 class DataSplit(str, Enum):
-    TRAIN = 'train'
-    VALIDATE = 'validation'  # unused
-    TEST = 'test'
-    ALL = 'ALL'  # unused
+    TRAIN = 'Train'
+    VALIDATE = 'Validation'  # unused
+    TEST = 'Test'
+    ALL = 'All'  # unused
 
 
 class Model(str, Enum):
@@ -24,11 +24,6 @@ class Model(str, Enum):
     CONSENSUS_BASELINE = 'ConsensusBaseline'
 
 
-class Report(str, Enum):
-    CLASSIFICATION_REPORT = 'classification-report'
-    ROC_AUC = 'roc-auc'
-
-
 DataDict = dict[str, dict[str, pd.DataFrame]]
 AssetID = tuple[str, str]
 ConsensusBaseline = Literal[Model.PREVIOUS_BASELINE, Model.CONSENSUS_BASELINE]
@@ -36,25 +31,25 @@ ConsensusBaseline = Literal[Model.PREVIOUS_BASELINE, Model.CONSENSUS_BASELINE]
 CONSENSUS_BASELINES = get_args(ConsensusBaseline)
 
 DATASET_SYMBOLS = {
-    'forex': [('forex', 'USDGBP.FOREX'),
+    'Forex': [('forex', 'USDGBP.FOREX'),
               ('forex', 'USDEUR.FOREX'),
               ('forex', 'USDCAD.FOREX'),
               ('forex', 'USDJPY.FOREX'),
               ('forex', 'EURGBP.FOREX')],
 
-    'bond': [('bond', 'US10Y.GBOND'),
+    'Bond': [('bond', 'US10Y.GBOND'),
              ('bond', 'US5Y.GBOND'),
              ('bond', 'UK5Y.GBOND'),
              ('bond', 'JP5Y.GBOND'),
              ('future', 'US.COMM')],
 
-    'index_futures': [('future', 'ES.COMM'),
+    'Index Futures': [('future', 'ES.COMM'),
                       ('future', 'NK.COMM'),
                       ('future', 'HSI.COMM'),
                       ('future', 'FESX.COMM'),
                       ('future', 'VIX.COMM')],
 
-    'commodities_futures': [('future', 'GC.COMM'),
+    'Commodities Futures': [('future', 'GC.COMM'),
                             ('future', 'NG.COMM'),
                             ('future', 'ZC.COMM'),
                             ('future', 'ZS.COMM')]
@@ -63,7 +58,7 @@ DATASET_SYMBOLS = {
 DUMMY_SCALER = FunctionTransformer(lambda x: x)
 
 METRICS = {
-    'accuracy': 'accuracy',
-    'weighted f1': ('weighted avg', 'f1-score'),
-    'macro f1': ('macro avg', 'f1-score')
+    'Accuracy': 'accuracy',
+    'Weighted F1': ('weighted avg', 'f1-score'),
+    'Macro F1': ('macro avg', 'f1-score')
 }

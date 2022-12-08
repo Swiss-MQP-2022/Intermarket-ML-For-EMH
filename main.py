@@ -12,14 +12,13 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import LinearSVC
 from sklearn.neighbors import KNeighborsClassifier as KNN
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import classification_report, roc_auc_score
+from sklearn.metrics import classification_report
 from sklearn.dummy import DummyClassifier
-from sklearn.calibration import CalibratedClassifierCV
 
 from dataset import build_datasets, TimeSeriesDataset
 from trainer import ScikitModelTrainer
 from utils import OptionWithModel, align_data, compute_consensus, encode_results, save_results
-from constants import ConsensusBaseline, CONSENSUS_BASELINES, DataSplit, Model, Report
+from constants import ConsensusBaseline, CONSENSUS_BASELINES, DataSplit, Model
 
 POLLING_RATE = 30  # Rate in seconds to poll changes in process status
 
@@ -38,28 +37,15 @@ def fit_single_model(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDatas
     # Train/fit provided model trainer on the provided dataset
     clf = model_trainer.train(dataset.X_train, dataset.y_train)
 
-    # https://stackoverflow.com/questions/26478000/converting-linearsvcs-decision-function-to-probabilities-scikit-learn-python
-    if model_trainer.name == Model.SUPPORT_VECTOR_MACHINE:  # Workaround for LinearSVC not implementing predict_proba
-        clf = CalibratedClassifierCV(clf, cv='prefit')
-        clf.fit(dataset.X_test, dataset.y_test)
-
     predicted_y_train = clf.predict(dataset.X_train)  # Get prediction of fitted model on training set (in-sample)
     predicted_y_test = clf.predict(dataset.X_test)  # Get prediction of fitted model on test set (out-sample)
-    y_train_score = clf.predict_proba(dataset.X_train)  # Get probabilities for predictions on training set (for ROC)
-    y_test_score = clf.predict_proba(dataset.X_test)  # Get probabilities for predictions on test set (for ROC)
 
     # Update report dictionary with results
     report_dict[model_trainer.name][dataset.name] = {
-        DataSplit.TRAIN: {
-            Report.ROC_AUC: roc_auc_score(dataset.y_train, y_train_score[:, -1], average='macro'),
-            Report.CLASSIFICATION_REPORT: classification_report(dataset.y_train, predicted_y_train,
-                                                                zero_division=0, output_dict=True)
-        },
-        DataSplit.TEST: {
-            Report.ROC_AUC: roc_auc_score(dataset.y_test, y_test_score[:, -1], average='macro'),
-            Report.CLASSIFICATION_REPORT: classification_report(dataset.y_test, predicted_y_test,
-                                                                zero_division=0, output_dict=True)
-        }
+        DataSplit.TRAIN: classification_report(dataset.y_train, predicted_y_train,
+                                               zero_division=0, output_dict=True),
+        DataSplit.TEST: classification_report(dataset.y_test, predicted_y_test,
+                                              zero_division=0, output_dict=True)
     }
 
     print(f'Done fitting {model_trainer.name} on {dataset.name} (PID {os.getpid()})')
@@ -85,16 +71,10 @@ def fit_consensus_baseline(dataset_list: list[TimeSeriesDataset],
         test_consensus = compute_consensus(dataset.y_test.shift(1).iloc[1:], period)
 
         report_dict[baseline][dataset.name] = {
-            DataSplit.TRAIN: {
-                Report.ROC_AUC: np.nan,
-                Report.CLASSIFICATION_REPORT: classification_report(*align_data(train_consensus, dataset.y_train),
-                                                                    zero_division=0, output_dict=True)
-            },
-            DataSplit.TEST: {
-                Report.ROC_AUC: np.nan,
-                Report.CLASSIFICATION_REPORT: classification_report(*align_data(test_consensus, dataset.y_test),
-                                                                    zero_division=0, output_dict=True)
-            }
+            DataSplit.TRAIN: classification_report(*align_data(train_consensus, dataset.y_train),
+                                                   zero_division=0, output_dict=True),
+            DataSplit.TEST: classification_report(*align_data(test_consensus, dataset.y_test),
+                                                  zero_division=0, output_dict=True)
         }
 
     print(f'Done generating {baseline}')
