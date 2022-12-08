@@ -99,7 +99,7 @@ def build_datasets(period=5,
     """
     Builds the full suite of datasets for experimentation
     :param period: period for sliding windows
-    :param rand_features: number of features to generate for brownian motion datasets
+    :param rand_features: number of features to generate for random sample datasets
     :param test_size: proportion of dataset to use in the testing set
     :param zero_col_thresh: proportion of a column that must be zero to drop it (passed to make_percent_dict)
     :param replace_zero: value to replace zeros in y_base with. No replacement if None (default)
