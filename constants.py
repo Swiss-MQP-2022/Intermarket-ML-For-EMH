@@ -15,9 +15,9 @@ class DataSplit(str, Enum):
 class Model(str, Enum):
     DECISION_TREE = 'DecisionTree'
     RANDOM_FOREST = 'RandomForest'
+    LOGISTIC_REGRESSION = 'LogisticRegression'
     SUPPORT_VECTOR_MACHINE = 'Linear SVM'
     K_NEAREST_NEIGHBORS = 'KNN'
-    LOGISTIC_REGRESSION = 'LogisticRegression'
     RANDOM_BASELINE = 'RandomBaseline'
     CONSTANT_BASELINE = 'ConstantBaseline'
     PREVIOUS_BASELINE = 'PreviousBaseline'
