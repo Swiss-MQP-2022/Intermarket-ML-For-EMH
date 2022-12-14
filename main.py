@@ -6,22 +6,19 @@ import uuid
 import os
 
 import numpy as np
-import pandas as pd
 
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import LinearSVC
 from sklearn.neighbors import KNeighborsClassifier as KNN
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import classification_report, roc_curve
+from sklearn.metrics import classification_report
 from sklearn.dummy import DummyClassifier
-from sklearn.calibration import CalibratedClassifierCV
 
 from dataset import build_datasets, TimeSeriesDataset
 from trainer import ScikitModelTrainer
-from utils import DataSplit, print_classification_reports, align_data, compute_consensus
-from out_functions import graph_all_roc, save_metrics
-from constants import ConsensusBaseline, CONSENSUS_BASELINES
+from utils import OptionWithModel, align_data, compute_consensus, encode_results, save_results
+from constants import ConsensusBaseline, CONSENSUS_BASELINES, DataSplit, Model
 
 POLLING_RATE = 30  # Rate in seconds to poll changes in process status
 
@@ -29,7 +26,7 @@ POLLING_RATE = 30  # Rate in seconds to poll changes in process status
 def fit_single_model(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDataset, report_dict: dict[str, dict]):
     """
     Fit a single model on the provided dataset and report results
-    :param model_trainer: model-trainer to fit
+    :param model_trainer: model trainer to use
     :param dataset: dataset to fit to
     :param report_dict: dictionary to save results to
     """
@@ -40,34 +37,23 @@ def fit_single_model(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDatas
     # Train/fit provided model trainer on the provided dataset
     clf = model_trainer.train(dataset.X_train, dataset.y_train)
 
-    # https://stackoverflow.com/questions/26478000/converting-linearsvcs-decision-function-to-probabilities-scikit-learn-python
-    if model_trainer.name == 'SVC':  # Workaround for LinearSVC not implementing predict_proba
-        clf = CalibratedClassifierCV(clf, cv='prefit')
-        clf.fit(dataset.X_test, dataset.y_test)
-
     predicted_y_train = clf.predict(dataset.X_train)  # Get prediction of fitted model on training set (in-sample)
     predicted_y_test = clf.predict(dataset.X_test)  # Get prediction of fitted model on test set (out-sample)
-    y_train_score = clf.predict_proba(dataset.X_train)  # Get probabilities for predictions on training set (for ROC)
-    y_test_score = clf.predict_proba(dataset.X_test)  # Get probabilities for predictions on test set (for ROC)
 
     # Update report dictionary with results
     report_dict[model_trainer.name][dataset.name] = {
-        'classification report': {
-            DataSplit.TRAIN: classification_report(dataset.y_train, predicted_y_train,
-                                                   zero_division=0, output_dict=True),
-            DataSplit.TEST: classification_report(dataset.y_test, predicted_y_test,
-                                                  zero_division=0, output_dict=True)
-        },
-        'roc': {
-            DataSplit.TRAIN: roc_curve(dataset.y_train, y_train_score[:, -1]),
-            DataSplit.TEST: roc_curve(dataset.y_test, y_test_score[:, -1])
-        }
+        DataSplit.TRAIN: classification_report(dataset.y_train, predicted_y_train,
+                                               zero_division=0, output_dict=True),
+        DataSplit.TEST: classification_report(dataset.y_test, predicted_y_test,
+                                              zero_division=0, output_dict=True)
     }
 
     print(f'Done fitting {model_trainer.name} on {dataset.name} (PID {os.getpid()})')
 
 
-def fit_consensus_baseline(dataset_list: list[TimeSeriesDataset], report_dict: dict[str, dict], baseline: ConsensusBaseline):
+def fit_consensus_baseline(dataset_list: list[TimeSeriesDataset],
+                           report_dict: dict[str, dict],
+                           baseline: ConsensusBaseline):
     """
     Fit and record results for the Consensus Baseline (Previous Baseline is period=1)
     :param dataset_list: list of datasets to fit on
@@ -85,16 +71,10 @@ def fit_consensus_baseline(dataset_list: list[TimeSeriesDataset], report_dict: d
         test_consensus = compute_consensus(dataset.y_test.shift(1).iloc[1:], period)
 
         report_dict[baseline][dataset.name] = {
-            'classification report': {
-                DataSplit.TRAIN: classification_report(*align_data(train_consensus, dataset.y_train),
-                                                       zero_division=0, output_dict=True),
-                DataSplit.TEST: classification_report(*align_data(test_consensus, dataset.y_test),
-                                                      zero_division=0, output_dict=True)
-            },
-            'roc': {
-                DataSplit.TRAIN: np.nan,
-                DataSplit.TEST: np.nan
-            }
+            DataSplit.TRAIN: classification_report(*align_data(train_consensus, dataset.y_train),
+                                                   zero_division=0, output_dict=True),
+            DataSplit.TEST: classification_report(*align_data(test_consensus, dataset.y_test),
+                                                  zero_division=0, output_dict=True)
         }
 
     print(f'Done generating {baseline}')
@@ -126,9 +106,9 @@ def wait_for_processes(wait_threshold: int, polling_rate: int):
 
 def start_new_model_process(model_trainer: ScikitModelTrainer, dataset: TimeSeriesDataset):
     """
-    Starts a new model-training process
+    Starts a new model-fitting process
     NOTE: adds the newly created process to process_list
-    :param model_trainer: ScikitModelTrainer to fit
+    :param model_trainer: ScikitModelTrainer to use
     :param dataset: dataset to fit model on
     """
     global process_list, reports
@@ -139,9 +119,12 @@ def start_new_model_process(model_trainer: ScikitModelTrainer, dataset: TimeSeri
     new_process.start()  # start process
 
 
-if __name__ == '__main__':
-    # Initialize option parser for optional multiprocessing parameter
-    parser = OptionParser()
+def initialize_option_parser():
+    """
+    Initializes the option parser for the main script
+    :return: parser
+    """
+    parser = OptionParser(option_class=OptionWithModel)
     parser.add_option('-p', '--processes',
                       action='store',
                       type='int',
@@ -149,14 +132,9 @@ if __name__ == '__main__':
                       help='Use multiprocessing when fitting models')
     parser.add_option('-m', '--model',
                       action='store',
-                      type='str',
+                      type='model_name',
                       dest='model',
                       help='Singular model to train')
-    parser.add_option('-n', '--no-plots',
-                      action='store_false',
-                      default=True,
-                      dest='plot',
-                      help='Do not build plots if provided')
     parser.add_option('-o', '--out-dir',
                       action='store',
                       type='str',
@@ -168,65 +146,84 @@ if __name__ == '__main__':
                       default=False,
                       dest='use_uuid',
                       help='Appends a unique identifier the output directory')
+
+    return parser
+
+
+def get_model_trainer_params(model: Model = None, n_jobs: int = -1):
+    """
+    Initialize model trainer parameters
+    :param model: desired model to get parameters for. Provides all models of None, empty dict if in CONSENSUS_BASELINES
+    :param n_jobs: n_jobs parameter to pass to models which support parallel processing
+    :return: dictionary of model trainer parameters
+    """
+
+    param_dict = {
+        Model.DECISION_TREE: dict(estimator=DecisionTreeClassifier(),
+                                  param_grid=dict(splitter=['best', 'random'],
+                                                  max_depth=[5, 10, 25, None],
+                                                  min_samples_split=[2, 5, 10, 50],
+                                                  min_samples_leaf=[1, 5, 10])),
+        Model.RANDOM_FOREST: dict(estimator=RandomForestClassifier(n_jobs=n_jobs),
+                                  param_grid=dict(n_estimators=[50, 100, 500],
+                                                  criterion=['gini', 'entropy'],
+                                                  max_depth=[5, 10, 25, None],
+                                                  min_samples_split=[2, 5, 10, 50],
+                                                  min_samples_leaf=[1, 5, 10])),
+        Model.SUPPORT_VECTOR_MACHINE: dict(estimator=LinearSVC(max_iter=1e6),
+                                           param_grid=dict(penalty=['l1', 'l2'],
+                                                           C=[1, 4, 9, 16, 25],
+                                                           loss=['hinge', 'squared_hinge']),
+                                           error_score=0),
+        Model.K_NEAREST_NEIGHBORS: dict(estimator=KNN(n_jobs=n_jobs),
+                                        param_grid=dict(n_neighbors=[5, 10, 15, 20],
+                                                        weights=['uniform', 'distance'],
+                                                        metric=['l1', 'l2', 'cosine'])),
+        Model.LOGISTIC_REGRESSION: dict(estimator=LogisticRegression(max_iter=1e4),
+                                        param_grid=dict(penalty=['l1', 'l2'],
+                                                        C=np.logspace(-3, 3, 7),
+                                                        solver=['newton-cg', 'lbfgs', 'liblinear']),
+                                        error_score=0),
+        Model.CONSTANT_BASELINE: dict(estimator=DummyClassifier(strategy='prior')),
+        Model.RANDOM_BASELINE: dict(estimator=DummyClassifier(strategy='uniform', random_state=0)),
+    }
+
+    # Specific model selected
+    if model is not None:
+        if model in CONSENSUS_BASELINES:  # consensus model requires manual calculation, no parameters needed
+            return {}
+        else:  # only provide parameters for desired model
+            return {model: param_dict[model]}
+    else:  # provide parameters for all models
+        return param_dict
+
+
+if __name__ == '__main__':
+    # Initialize option parser for optional multiprocessing parameter
+    parser = initialize_option_parser()
     options, _ = parser.parse_args()
 
     if options.use_uuid:
         options.out_dir += rf'_{uuid.uuid4()}'
 
-    plot_dir = rf'{options.out_dir}/plots'
-
-    Path(plot_dir).mkdir(parents=True, exist_ok=True)  # create output directories if they don't exist
+    Path(options.out_dir).mkdir(parents=True, exist_ok=True)  # create output directory if it doesn't exist
 
     # n_jobs parameter sklearn (must be 1 when using multiprocessing)
     n_jobs = 1 if options.processes is not None else -1
 
     # Initialize estimators and parameters to use for experiments
-    models = {
-        'DecisionTree': dict(estimator=DecisionTreeClassifier(),
-                             param_grid=dict(splitter=['best', 'random'],
-                                             max_depth=[5, 10, 25, None],
-                                             min_samples_split=[2, 5, 10, 50],
-                                             min_samples_leaf=[1, 5, 10])),
-        'RandomForest': dict(estimator=RandomForestClassifier(n_jobs=n_jobs),
-                             param_grid=dict(n_estimators=[50, 100, 500],
-                                             criterion=['gini', 'entropy'],
-                                             max_depth=[5, 10, 25, None],
-                                             min_samples_split=[2, 5, 10, 50],
-                                             min_samples_leaf=[1, 5, 10])),
-        'SVC': dict(estimator=LinearSVC(max_iter=1e6),
-                    param_grid=dict(penalty=['l1', 'l2'],
-                                    C=[1, 4, 9, 16, 25],
-                                    loss=['hinge', 'squared_hinge']),
-                    error_score=0),
-        'KNN': dict(estimator=KNN(n_jobs=n_jobs),
-                    param_grid=dict(n_neighbors=[5, 10, 15, 20],
-                                    weights=['uniform', 'distance'],
-                                    metric=['l1', 'l2', 'cosine'])),
-        'LogisticRegression': dict(estimator=LogisticRegression(max_iter=1e4),
-                                   param_grid=dict(penalty=['l1', 'l2'],
-                                                   C=np.logspace(-3, 3, 7),
-                                                   solver=['newton-cg', 'lbfgs', 'liblinear']),
-                                   error_score=0),
-        'PriorBaseline': dict(estimator=DummyClassifier(strategy='prior')),
-        'RandomBaseline': dict(estimator=DummyClassifier(strategy='uniform', random_state=0)),
-    }
-
-    # Specific model selected
-    if options.model is not None:
-        if options.model in CONSENSUS_BASELINES:  # selected model requires manual calculation
-            models = {}
-        else:  # desired model can use automatic fitting
-            models = {options.model: models[options.model]}
+    models = get_model_trainer_params(options.model, n_jobs)
 
     # Construct datasets to experiment on
     datasets = build_datasets(period=5,
-                              brn_features=5,
+                              rand_features=5,
                               test_size=0.2,
                               zero_col_thresh=0.25,
                               replace_zero=-1)
 
+    # Dictionary which stores result data from experiments
+    reports = {}  # Organized as reports[model name][dataset name][split][report type]
     process_list = []  # List of processes (used for multiprocessing)
-    reports = {}  # Dictionary which stores result data from experiments
 
     # Model experimentation
     for model_name, model in models.items():  # For each model
@@ -236,7 +233,7 @@ if __name__ == '__main__':
         for data in datasets:  # For each dataset
             if options.processes is not None:  # Use multiprocessing if enabled
                 wait_for_processes(options.processes, POLLING_RATE)  # Wait for acceptable number of running processes
-                start_new_model_process(trainer, data)  # Start a new training process
+                start_new_model_process(trainer, data)  # Start a new fitting process
             else:  # Do not use multiprocessing
                 fit_single_model(trainer, data, reports)  # Fit a single model in the current process
 
@@ -249,23 +246,12 @@ if __name__ == '__main__':
     elif options.model in CONSENSUS_BASELINES:  # consensus baseline selected as model
         fit_consensus_baseline(datasets, reports, options.model)  # fit desired baseline
 
-    # Convert reports into a multi-level dataframe of results
-    results = pd.DataFrame.from_dict({(m, d, r): reports[m][d][r]
-                                      for m in reports.keys()
-                                      for d in reports[m].keys()
-                                      for r in reports[m][d].keys()},
-                                     orient='index')
-    results = results.unstack().swaplevel(0, 1, axis=1)  # Reorganize MultiIndexes
-    # Results is a DataFrame with two index levels (model, dataset) and two column levels (report type, data split)
+    # RESULT REPORTING
+    results = encode_results(reports)
 
-    # Save metrics to CSVs
-    save_metrics(results, model_name=options.model, out_dir=options.out_dir)
+    print(results)
 
-    if options.plot and options.model not in CONSENSUS_BASELINES:
-        # Generate ROC graphs
-        graph_all_roc(results.drop(index=CONSENSUS_BASELINES, errors='ignore'), plot_dir=plot_dir)
-
-    # Print classification reports for all model-dataset pairs
-    print_classification_reports(results)
+    # Save metrics
+    save_results(results, options.model, out_dir=options.out_dir)
 
     print('Done!')

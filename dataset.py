@@ -92,14 +92,14 @@ class MultiAssetDataset(TimeSeriesDataset):
 
 
 def build_datasets(period=5,
-                   brn_features=5,
+                   rand_features=5,
                    test_size=0.2,
                    zero_col_thresh=1,
                    replace_zero=None) -> list[TimeSeriesDataset]:
     """
     Builds the full suite of datasets for experimentation
     :param period: period for sliding windows
-    :param brn_features: number of features to generate for brownian motion datasets
+    :param rand_features: number of features to generate for random sample datasets
     :param test_size: proportion of dataset to use in the testing set
     :param zero_col_thresh: proportion of a column that must be zero to drop it (passed to make_percent_dict)
     :param replace_zero: value to replace zeros in y_base with. No replacement if None (default)
@@ -107,17 +107,17 @@ def build_datasets(period=5,
     """
     # Load all the data
     raw_data = utils.load_data()
-    returns_data = utils.make_percent_dict(raw_data, zero_col_thresh=zero_col_thresh)
+    returns_data = utils.make_returns_datadict(raw_data, zero_col_thresh=zero_col_thresh)
 
     # Generate the FULL available y set
-    y_base = utils.make_percent_series(raw_data['stock']['SPY.US']['close'])
+    y_base = utils.make_returns_series(raw_data['stock']['SPY.US']['close'])
     y_base = y_base.apply(np.sign).shift(-1).iloc[:-1]
     if replace_zero is not None:  # replace zeros if desired
         y_base = y_base.replace(0, replace_zero)  # replace 0s with specified value
 
     # Initialize list of datasets with just the random normal sample data and SPY alone
     datasets = [
-        TimeSeriesDataset(utils.generate_brownian_motion(len(y_base), brn_features),
+        TimeSeriesDataset(np.random.normal(len(y_base), size=(len(y_base), rand_features)),
                           y_base,
                           period=period,
                           test_size=test_size,
