@@ -8,27 +8,21 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 
-from constants import DATASET_SYMBOLS, DataDict, AssetID, Model, DataSplit, METRICS
-
+from constants import DATASET_SYMBOLS, DataDict, AssetID, Model, DataSplit, Metric, ReportDict
 
 T = TypeVar('T')
 
 
 class Scaler(Protocol):
     def fit(self, X): ...
-
     def transform(self, X) -> np.ndarray: ...
-
     def fit_transform(self, X) -> np.ndarray: ...
-
     def inverse_transform(self, X) -> np.ndarray: ...
 
 
 class Estimator(Protocol):
     def fit(self, X, y): ...
-
     def predict(self, X) -> ...: ...
-
     def predict_proba(self, x) -> ...: ...
 
 
@@ -61,8 +55,7 @@ def load_data(path=r'./data') -> DataDict:
     """
     Load all data into a 2D dictionary of data
     :param path: path to directory containing data
-    :param zero_col_thresh: proportion of a column that must be zero to drop it
-    :return: 2D dictionary of data, where the first key is the asset type (first folder level), second key is asset name (csv name)
+    :return: DataDict, dictionary organized as dict[asset type (first folder level)][asset name (csv name)]
     """
     path = Path(path)
 
@@ -253,7 +246,7 @@ def encode_model(model: Model) -> list[bool]:
     return [ref_model == model for ref_model in Model]
 
 
-def make_row_from_report(reports: dict, model: Model, dataset: str, split: DataSplit):
+def make_row_from_report(reports: ReportDict, model: Model, dataset: str, split: DataSplit):
     """
     Generates a properly encoded data row from the provided report
     :param reports: the un-encoded report
@@ -266,15 +259,12 @@ def make_row_from_report(reports: dict, model: Model, dataset: str, split: DataS
 
     row = encode_model(model) + encode_dataset(dataset)
     row += [split == DataSplit.TEST]
-    row += [data[metric[0]][metric[1]]
-            if isinstance(metric, tuple)
-            else data[metric]
-            for metric in METRICS.values()]
+    row += [data[metric] for metric in Metric]
 
     return row
 
 
-def encode_results(reports) -> pd.DataFrame:
+def encode_results(reports: ReportDict) -> pd.DataFrame:
     """
     Encodes the provided report's data into a more useful format
     :param reports: reports dictionary to encode
@@ -286,7 +276,7 @@ def encode_results(reports) -> pd.DataFrame:
     columns = [model for model in Model] + \
               list(DATASET_SYMBOLS.keys()) + \
               ['SPY', 'Random', DataSplit.TEST] + \
-              list(METRICS.keys())
+              [metric for metric in Metric]
 
     # Properly encode results into useful format
     results = [make_row_from_report(reports, model, dataset, split)
@@ -297,16 +287,18 @@ def encode_results(reports) -> pd.DataFrame:
     return pd.DataFrame(results, columns=columns)
 
 
-def save_results(data: pd.DataFrame, model: Model = None, out_dir=r'./out'):
+def save_results(data: pd.DataFrame, model: Model = None, out_dir=r'./out', prefix=None):
     """
     Generate CSVs of desired metrics
     :param data: dataframe containing metric data
     :param model: associated model (prefix for filename)
     :param out_dir: directory to save CSVs
+    :param prefix: prefix to add to filename before "results" extension (used for denoting replications)
     """
-    print('Saving metrics...')
+    print('Saving results...')
 
     model_name = f'{model.value}_' if model is not None else ''
+    prefix = f'{prefix}_' if prefix is not None else ''
 
     # Save metrics to csv
-    data.to_csv(rf'{out_dir}/{make_filename_safe(model_name)}results.csv')
+    data.to_csv(rf'{out_dir}/{make_filename_safe(model_name)}{prefix}results.csv')
