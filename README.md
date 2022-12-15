@@ -135,7 +135,7 @@ In order to analyze results, run the code in `stats.ipynb`. This can be done usi
 
    **NOTE:** When True, requires desired files for joining to end in `results.csv`. Files in subdirectories of `data_dir` will also be used.
 
- - `alpha`: $\alpha$ threshold to use when computing reduced ANOVA models ($1 - \text{confidence level}$). `0.05` by default.
+ - `alpha`: $\alpha$ threshold to use when computing reduced ANOVA models (1 - confidence level). `0.05` by default.
 
  - `only_reduced`: Only display reduced ANOVA models. `False` by default.
 
