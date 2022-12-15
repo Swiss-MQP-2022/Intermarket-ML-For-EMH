@@ -16,7 +16,7 @@ class Model(str, Enum):
     DECISION_TREE = 'DecisionTree'
     RANDOM_FOREST = 'RandomForest'
     LOGISTIC_REGRESSION = 'LogisticRegression'
-    SUPPORT_VECTOR_MACHINE = 'Linear SVM'
+    SUPPORT_VECTOR_MACHINE = 'LinearSVM'
     K_NEAREST_NEIGHBORS = 'KNN'
     RANDOM_BASELINE = 'RandomBaseline'
     CONSTANT_BASELINE = 'ConstantBaseline'
