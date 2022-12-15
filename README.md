@@ -4,7 +4,7 @@
 
 #### Worcester Polytechnic Institute, Departments of Computer Science & Data Science
 
-Code for experiments conducted in the paper of the same name.
+Code for experiments and results analysis conducted in the paper of the same name.
 
 
 ## Requirements
