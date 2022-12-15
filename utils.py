@@ -6,7 +6,6 @@ import re
 
 import pandas as pd
 import numpy as np
-from scipy import stats
 
 from constants import DATASET_SYMBOLS, DataDict, AssetID, Model, DataSplit, Metric, ReportDict
 
@@ -219,7 +218,7 @@ def compute_consensus(data: pd.Series, period: int) -> pd.Series:
     :return: moving consensus
     """
     windowed = data.rolling(period)
-    consensus = windowed.apply(lambda x: stats.mode(x, keepdims=False)[0])
+    consensus = windowed.apply(lambda x: x.mode())
     return consensus.iloc[period - 1:]
 
 
