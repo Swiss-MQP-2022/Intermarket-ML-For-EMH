@@ -2,8 +2,9 @@
 
 ### Authors: [N'yoma Diamond](https://github.com/nyoma-diamond), [Grant Perkins](https://github.com/GrantPerkins)
 
-#### Worcester Polytechnic Institute 
-#### Departments of Computer Science & Data Science
+#### Worcester Polytechnic Institute, Departments of Computer Science & Data Science
+
+Code for experiments conducted in the paper of the same name.
 
 
 ## Requirements
