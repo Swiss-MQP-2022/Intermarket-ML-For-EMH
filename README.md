@@ -1,6 +1,15 @@
+# Using Intermarket Data to Evaluate the Efficient Market Hypothesis with Machine Learning
+
+### Authors: [N'yoma Diamond](https://github.com/nyoma-diamond), [Grant Perkins](https://github.com/GrantPerkins)
+
+### Departments of Computer Science & Data Science
+### Worcester Polytechnic Institute
+### Worcester, MA 01609
 
 
 ## Requirements
+
+### Python Version: 3.9.12
 
 ### Dependencies
 
