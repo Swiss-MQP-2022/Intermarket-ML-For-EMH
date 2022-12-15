@@ -22,7 +22,9 @@ Code for experiments conducted in the paper of the same name.
 
 ### Input Data
 
-By default, input data is expected in the form of CSVs using the following directory structure: 
+#### `main.py`
+
+By default, `main.py` expects input data in the form of CSVs using the following directory structure: 
 
 ```
 ./data/{asset type}/{asset name}.csv
@@ -55,6 +57,10 @@ Expected asset type/name combinations are as follows:
    - `ZC.COMM`
    - `ZS.COMM`
 
+#### `stats.ipynb`
+
+By default, `stats.ipynb` expects input data in the form of CSVs in the directory `./out`. If desired, this can be changed by editing the `data_dir` variable.
+
 
 ## File Organization
 
@@ -67,7 +73,7 @@ The files in this project are organized as follows:
  - `utils.py` contains general-purpose utility code.
  - `constants.py` contains useful constants, settings, and typing information.
 
-## Running the Code
+## Running Experiments
 
 The code can be run from command-line using the following command:
 
@@ -75,7 +81,7 @@ The code can be run from command-line using the following command:
 python main.py <optional arguments>
 ```
 
-If no arguments are provided, this will run a single replication where all models are trained in serial.
+This will create an output directory (if one does not already exist) and save the experimental results into it. If no arguments are provided, this will run a single replication where all models are trained in serial with results saved into a file named `results.csv`.
 
 ### Optional Arguments
 
@@ -111,3 +117,30 @@ If desired, optional command-line arguments may be provided to `main.py`:
     **NOTE:** The provided directory and any parent directories will be created if not already present.
 
  - `-u`/`--use-uuid`: Append a unique identifier (UUID) to the end of the output directory. This argument _can_ be used in conjunction with `-o`/`--out_dir`. This is useful to prevent accidentally overwriting results files when running multiple experiments without using `-r`/`--replications`
+
+
+## Analyzing Results
+
+In order to analyze results, run the code in `stats.ipynb`. This can be done using any Jupyter Notebook environment (e.g. Jupyter Notebook IDE, Jupyter Lab, PyCharm, Google Colab). This will perform the same analysis described in the paper. 
+
+**NOTE:** By default, this code assumes that the files to analyze will end in `results.csv`, and will not work otherwise.
+
+### Editable Parameters
+
+`stats.ipynb` has a number of parameters which can be changed if desired:
+
+ - `data_dir`: The directory from which to load results data. `./out` by default.
+
+ - `concat_results`: Whether to combine any and all available results files in `data_dir`. `True` by default. If `False`, use `<data_dir>/results.csv`.
+
+   **NOTE:** When True, requires desired files for joining to end in `results.csv`. Files in subdirectories of `data_dir` will also be used.
+
+ - `alpha`: $\alpha$ threshold to use when computing reduced ANOVA models ($1 - \text{confidence level}$). `0.05` by default.
+
+ - `only_reduced`: Only display reduced ANOVA models. `False` by default.
+
+ - `latex_output`: Change table output to print $\LaTeX$ formatted tables instead of DataFrames. `False` by default. 
+
+ - `combine_anova_latex`: Combine full and reduced ANOVA model printouts into one table. 
+
+   **NOTE:** **_Requires_** `latex_output` to be `True`, does nothing otherwise. Overrides `only_reduced` if `True`
