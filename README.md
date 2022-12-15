@@ -2,9 +2,8 @@
 
 ### Authors: [N'yoma Diamond](https://github.com/nyoma-diamond), [Grant Perkins](https://github.com/GrantPerkins)
 
+#### Worcester Polytechnic Institute 
 #### Departments of Computer Science & Data Science
-#### Worcester Polytechnic Institute
-#### Worcester, MA 01609
 
 
 ## Requirements
