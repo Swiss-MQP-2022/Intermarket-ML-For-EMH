@@ -59,7 +59,14 @@ Expected asset type/name combinations are as follows:
 
 #### `stats.ipynb`
 
-By default, `stats.ipynb` expects input data in the form of CSVs in the directory `./out`. If desired, this can be changed by editing the `data_dir` variable.
+By default, `stats.ipynb` expects input data in the form of CSVs with the following directory/name structure:
+```
+./out/**/*results.csv
+``` 
+
+Note that `**/*` enables the selection of any and all files ending in `results.csv` from arbitrary subdirectories of `./out`
+
+If desired, this can be changed by editing the `data_dir` and `concat_results` variables.
 
 
 ## File Organization
