@@ -1,10 +1,10 @@
-# Using Intermarket Data to Evaluate the Efficient Market Hypothesis with Machine Learning
+# [Using Intermarket Data to Evaluate the Efficient Market Hypothesis with Machine Learning](https://doi.org/10.48550/arXiv.2212.08734)
 
 ### Authors: [N'yoma Diamond](https://github.com/nyoma-diamond), [Grant Perkins](https://github.com/GrantPerkins)
 
 #### Worcester Polytechnic Institute, Departments of Computer Science & Data Science
 
-Code for experiments and results analysis conducted in the paper of the same name.
+Code for experiments and results analysis conducted in the paper of the same name. Preprint available at https://doi.org/10.48550/arXiv.2212.08734.
 
 
 ## Requirements
